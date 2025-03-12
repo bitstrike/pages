@@ -135,7 +135,7 @@
                     lines.push(tempLine.trim());
                     tempLine = '';
                 }
-                tempLine += word + ' ';
+                tempLine += (tempLine ? ' ' : '') + word;
             });
             lines.push(tempLine.trim());
             return lines;
@@ -143,4 +143,3 @@
     </script>
 </body>
 </html>
-
