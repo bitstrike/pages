@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Map Editor</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #f0f0f0;
+      margin: 20px;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+    #canvasContainer {
+      margin: 20px;
+      position: relative;
+    }
+    canvas {
+      border: 2px solid #333;
+      background-color: white;
+    }
+    .popup {
+      position: absolute;
+      background-color: white;
+      border: 2px solid #333;
+      border-radius: 5px;
+      padding: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      z-index: 10;
+      display: none;
+    }
+    .popup-item {
+      padding: 8px 12px;
+      margin: 4px 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      border-radius: 4px;
+    }
+    .popup-item:hover {
+      background-color: #f0f0f0;
+    }
+    .popup-icon {
+      font-size: 20px;
+      width: 30px;
+      text-align: center;
+      margin-right: 10px;
+    }
+    .popup-divider {
+      height: 1px;
+      background-color: #ddd;
+      margin: 8px 0;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+      max-width: 400px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      padding: 5px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background-color: white;
+    }
+    .legend-icon {
+      font-size: 20px;
+      width: 30px;
+      text-align: center;
+      margin-right: 5px;
+    }
+    .controls {
+      margin-top: 15px;
+    }
+    button {
+      padding: 8px 15px;
+      margin: 0 10px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    #status {
+      margin-top: 10px;
+      font-style: italic;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <h1>Map Editor</h1>
+  <div id="canvasContainer">
+    <canvas id="mapCanvas" width="360" height="360"></canvas>
+    <div id="popup" class="popup"></div>
+  </div>
+  
+  <div class="legend">
+    <div class="legend-item"><div class="legend-icon">🪨</div><div>Rock</div></div>
+    <div class="legend-item"><div class="legend-icon">🛣️</div><div>Path</div></div>
+    <div class="legend-item"><div class="legend-icon">⬛</div><div>Dark</div></div>
+    <div class="legend-item"><div class="legend-icon">🔄</div><div>Spinner</div></div>
+    <div class="legend-item"><div class="legend-icon">⏬</div><div>Chute</div></div>
+    <div class="legend-item"><div class="legend-icon">🌀</div><div>Teleporter</div></div>
+    <div class="legend-item"><div class="legend-icon">🚩</div><div>Start</div></div>
+    <div class="legend-item"><div class="legend-icon">🏁</div><div>End</div></div>
+    <div class="legend-item"><div class="legend-icon">🪜</div><div>Ladder</div></div>
+  </div>
+
+  <div class="controls">
+    <button id="clearBtn">Clear All</button>
+    <button id="saveBtn">Save Map</button>
+  </div>
+  
+  <div id="status">Tip: Click and drag to select multiple cells</div>
+
+  <script>
+    // Get references to elements
+    const canvas = document.getElementById('mapCanvas');
+    const ctx = canvas.getContext('2d');
+    const popup = document.getElementById('popup');
+    const clearBtn = document.getElementById('clearBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const canvasContainer = document.getElementById('canvasContainer');
+    const statusEl = document.getElementById('status');
+
+    // Grid configuration
+    const gridSize = 6;
+    const cellSize = canvas.width / gridSize;
+    
+    // Terrain types with associated icons and colors
+    const terrainTypes = [
+      {name: 'rock', icon: '🪨', color: '#A0A0A0'},
+      {name: 'path', icon: '🛣️', color: '#C2B280'},
+      {name: 'dark', icon: '⬛', color: '#333333'},
+      {name: 'spinner', icon: '🔄', color: '#5DA9E9'},
+      {name: 'chute', icon: '⏬', color: '#FF7F7F'},
+      {name: 'teleporter', icon: '🌀', color: '#BA55D3'},
+      {name: 'start', icon: '🚩', color: '#77DD77'},
+      {name: 'end', icon: '🏁', color: '#FFD700'},
+      {name: 'ladder', icon: '🪜', color: '#CD853F'}
+    ];
+
+    // Initialize grid with empty cells
+    let grid = [];
+    for (let row = 0; row < gridSize; row++) {
+      grid[row] = [];
+      for (let col = 0; col < gridSize; col++) {
+        grid[row][col] = null;
+      }
+    }
+
+    // Variables to track current selection
+    let selectedRow = -1;
+    let selectedCol = -1;
+    let isMouseDown = false;
+    let selectedCells = new Set(); // For multi-selection
+    let lastHoveredCell = {row: -1, col: -1};
+    let mousePosition = {x: 0, y: 0}; // Store mouse position for popup placement
+
+    // Draw the grid
+    function drawGrid() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw cells
+      for (let row = 0; row < gridSize; row++) {
+        for (let col = 0; col < gridSize; col++) {
+          const x = col * cellSize;
+          const y = row * cellSize;
+          
+          // Draw cell background
+          if (selectedCells.has(`${row},${col}`)) {
+            // Highlighted cell in selection mode
+            ctx.fillStyle = 'rgba(173, 216, 230, 0.5)'; // Light blue highlight
+          } else {
+            ctx.fillStyle = grid[row][col] ? grid[row][col].color : 'white';
+          }
+          ctx.fillRect(x, y, cellSize, cellSize);
+          
+          // Draw cell border
+          ctx.strokeStyle = '#888';
+          ctx.strokeRect(x, y, cellSize, cellSize);
+          
+          // Draw icon if a terrain is selected for this cell
+          if (grid[row][col]) {
+            ctx.font = `${cellSize * 0.6}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = grid[row][col].color === '#333333' ? 'white' : 'black';
+            ctx.fillText(grid[row][col].icon, x + cellSize/2, y + cellSize/2);
+          }
+        }
+      }
+    }
+
+    // Clear selected cells
+    function clearSelectedCells() {
+      for (let cellKey of selectedCells) {
+        const [r, c] = cellKey.split(',').map(Number);
+        grid[r][c] = null;
+      }
+      selectedCells.clear();
+      drawGrid();
+      hidePopup();
+      statusEl.textContent = "Selection cleared";
+    }
+
+    // Create popup content
+    function createPopup(row, col, mouseX, mouseY) {
+      let html = '';
+      terrainTypes.forEach(terrain => {
+        html += `<div class="popup-item" data-terrain="${terrain.name}">
+                   <div class="popup-icon">${terrain.icon}</div>
+                   <div>${terrain.name.charAt(0).toUpperCase() + terrain.name.slice(1)}</div>
+                 </div>`;
+      });
+      
+      // Add clear selection option
+      if (selectedCells.size > 0) {
+        html += `<div class="popup-divider"></div>`;
+        html += `<div class="popup-item" id="clearSelection">
+                  <div class="popup-icon">❌</div>
+                  <div>Clear Selection</div>
+                </div>`;
+      }
+      
+      popup.innerHTML = html;
+      
+      // Add event listeners to popup items
+      const items = popup.querySelectorAll('.popup-item[data-terrain]');
+      items.forEach(item => {
+        item.addEventListener('click', (e) => {
+          const terrainName = item.getAttribute('data-terrain');
+          const terrain = terrainTypes.find(t => t.name === terrainName);
+          
+          if (terrain) {
+            // Apply terrain to all selected cells
+            if (selectedCells.size > 0) {
+              for (let cellKey of selectedCells) {
+                const [r, c] = cellKey.split(',').map(Number);
+                grid[r][c] = terrain;
+              }
+              selectedCells.clear();
+            } else {
+              // Just apply to the clicked cell
+              grid[row][col] = terrain;
+            }
+            
+            drawGrid();
+            hidePopup();
+          }
+        });
+      });
+      
+      // Add event listener for clear selection
+      const clearSelectionBtn = document.getElementById('clearSelection');
+      if (clearSelectionBtn) {
+        clearSelectionBtn.addEventListener('click', clearSelectedCells);
+      }
+      
+      // Position the popup near the mouse cursor
+      const rect = canvas.getBoundingClientRect();
+      let popupX, popupY;
+      
+      // Use provided mouse coordinates (from mouseup or click event)
+      if (mouseX !== undefined && mouseY !== undefined) {
+        popupX = mouseX;
+        popupY = mouseY;
+      } else {
+        // Fallback to cell position
+        popupX = rect.left + (col * cellSize) + cellSize/2;
+        popupY = rect.top + (row * cellSize) + cellSize/2;
+      }
+      
+      // Position popup to not go off-screen
+      popup.style.display = 'block'; // Temporarily show to get dimensions
+      const popupWidth = popup.offsetWidth;
+      const popupHeight = popup.offsetHeight;
+      
+      // Adjust if off-screen
+      if (popupX + popupWidth > window.innerWidth) {
+        popupX = popupX - popupWidth;
+      }
+      
+      if (popupY + popupHeight > window.innerHeight) {
+        popupY = popupY - popupHeight;
+      }
+      
+      popup.style.left = `${popupX}px`;
+      popup.style.top = `${popupY}px`;
+    }
+
+    // Hide popup
+    function hidePopup() {
+      popup.style.display = 'none';
+      selectedRow = -1;
+      selectedCol = -1;
+    }
+
+    // Get grid position from canvas coordinates
+    function getGridPosition(x, y) {
+      const col = Math.floor(x / cellSize);
+      const row = Math.floor(y / cellSize);
+      return { row, col };
+    }
+
+    // Handle canvas click event
+    canvas.addEventListener('click', (e) => {
+      if (isMouseDown) return; // Ignore clicks that were part of a drag
+      
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      mousePosition = {x: e.clientX, y: e.clientY};
+      
+      const { row, col } = getGridPosition(x, y);
+      
+      if (row >= 0 && row < gridSize && col >= 0 && col < gridSize) {
+        // If selection exists, show popup
+        if (selectedCells.size > 0) {
+          createPopup(row, col, mousePosition.x, mousePosition.y);
+          return;
+        }
+        
+        // Hide popup if clicking the same cell again
+        if (selectedRow === row && selectedCol === col) {
+          hidePopup();
+          return;
+        }
+        
+        selectedRow = row;
+        selectedCol = col;
+        createPopup(row, col, mousePosition.x, mousePosition.y);
+      }
+    });
+
+    // Mouse down event (start of drag)
+    canvas.addEventListener('mousedown', (e) => {
+      // Only allow left mouse button
+      if (e.button !== 0) return;
+      
+      isMouseDown = true;
+      selectedCells.clear();
+      
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      mousePosition = {x: e.clientX, y: e.clientY};
+      
+      const { row, col } = getGridPosition(x, y);
+      
+      if (row >= 0 && row < gridSize && col >= 0 && col < gridSize) {
+        lastHoveredCell = { row, col };
+        selectedCells.add(`${row},${col}`);
+        drawGrid();
+      }
+      
+      // Hide any open popup when starting a new selection
+      hidePopup();
+    });
+
+    // Mouse move event (during drag)
+    canvas.addEventListener('mousemove', (e) => {
+      mousePosition = {x: e.clientX, y: e.clientY};
+      
+      if (!isMouseDown) return;
+      
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      const { row, col } = getGridPosition(x, y);
+      
+      if (row >= 0 && row < gridSize && col >= 0 && col < gridSize) {
+        // Only update if we moved to a new cell
+        if (row !== lastHoveredCell.row || col !== lastHoveredCell.col) {
+          lastHoveredCell = { row, col };
+          selectedCells.add(`${row},${col}`);
+          drawGrid();
+          
+          // Update status with selection count
+          statusEl.textContent = `Selected ${selectedCells.size} cells`;
+        }
+      }
+    });
+
+    // Mouse up event (end of drag)
+    canvas.addEventListener('mouseup', (e) => {
+      if (!isMouseDown) return;
+      isMouseDown = false;
+      
+      // If we have selected cells, show popup for selection
+      if (selectedCells.size > 0) {
+        // Show popup at the current mouse position
+        createPopup(lastHoveredCell.row, lastHoveredCell.col, e.clientX, e.clientY);
+      }
+    });
+
+    // Mouse leave event (cancel drag if mouse leaves canvas)
+    canvas.addEventListener('mouseleave', (e) => {
+      // Don't cancel the selection, just stop tracking
+      isMouseDown = false;
+    });
+
+    // Hide popup when clicking outside canvas or popup
+    document.addEventListener('click', (e) => {
+      if (e.target !== canvas && !popup.contains(e.target)) {
+        hidePopup();
+      }
+    });
+
+    // Clear button functionality
+    clearBtn.addEventListener('click', () => {
+      for (let row = 0; row < gridSize; row++) {
+        for (let col = 0; col < gridSize; col++) {
+          grid[row][col] = null;
+        }
+      }
+      selectedCells.clear();
+      drawGrid();
+      hidePopup();
+      statusEl.textContent = "Tip: Click and drag to select multiple cells";
+    });
+
+    // Save button functionality
+    saveBtn.addEventListener('click', () => {
+      // Convert the grid to a format that can be easily saved
+      const mapData = [];
+      for (let row = 0; row < gridSize; row++) {
+        const rowData = [];
+        for (let col = 0; col < gridSize; col++) {
+          rowData.push(grid[row][col] ? grid[row][col].name : 'empty');
+        }
+        mapData.push(rowData);
+      }
+      
+      // Stringify and save to localStorage or download
+      const dataStr = JSON.stringify(mapData, null, 2);
+      
+      // Create download link
+      const dataBlob = new Blob([dataStr], {type: 'application/json'});
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'map_data.json';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      alert('Map saved successfully!');
+    });
+
+    // Initialize the grid on load
+    drawGrid();
+  </script>
+</body>
+</html>
