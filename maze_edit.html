@@ -3,99 +3,103 @@
 <head>
   <title>Map Editor</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      background-color: #f0f0f0;
-      margin: 20px;
+  body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #1a1a1a;
+    margin: 20px;
+    color: #e0e0e0;
     }
+
     h1 {
-      color: #333;
-      margin-bottom: 10px;
+    color: #e0e0e0;
+    margin-bottom: 10px;
     }
+
     #canvasContainer {
-      margin: 20px;
-      position: relative;
+    margin: 20px;
+    position: relative;
     }
+
     canvas {
-      border: 2px solid #333;
-      background-color: white;
+    border: 2px solid #555;
+    background-color: #2a2a2a;
     }
+
     .popup {
-      position: absolute;
-      background-color: white;
-      border: 2px solid #333;
-      border-radius: 5px;
-      padding: 10px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-      z-index: 10;
-      display: none;
+    position: absolute;
+    background-color: #333;
+    border: 2px solid #555;
+    border-radius: 5px;
+    padding: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+    z-index: 10;
+    display: none;
+    color: #e0e0e0;
     }
+
     .popup-item {
-      padding: 8px 12px;
-      margin: 4px 0;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      border-radius: 4px;
+    padding: 8px 12px;
+    margin: 4px 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
     }
+
     .popup-item:hover {
-      background-color: #f0f0f0;
+    background-color: #444;
     }
-    .popup-icon {
-      font-size: 20px;
-      width: 30px;
-      text-align: center;
-      margin-right: 10px;
-    }
+
     .popup-divider {
-      height: 1px;
-      background-color: #ddd;
-      margin: 8px 0;
+    height: 1px;
+    background-color: #555;
+    margin: 8px 0;
     }
+
     .legend {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 10px;
-      margin-top: 20px;
-      max-width: 400px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 20px;
+    max-width: 400px;
     }
+
     .legend-item {
-      display: flex;
-      align-items: center;
-      padding: 5px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      background-color: white;
+    display: flex;
+    align-items: center;
+    padding: 5px;
+    border: 1px solid #555;
+    border-radius: 4px;
+    background-color: #333;
     }
-    .legend-icon {
-      font-size: 20px;
-      width: 30px;
-      text-align: center;
-      margin-right: 5px;
-    }
+
     .controls {
-      margin-top: 15px;
+    margin-top: 15px;
     }
+
     button {
-      padding: 8px 15px;
-      margin: 0 10px;
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
+    padding: 8px 15px;
+    margin: 0 10px;
+    background-color: #3a6b3d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
     }
+
     button:hover {
-      background-color: #45a049;
+    background-color: #4c8c50;
     }
+
     #status {
-      margin-top: 10px;
-      font-style: italic;
-      color: #666;
+    margin-top: 10px;
+    font-style: italic;
+    color: #999;
     }
   </style>
 </head>
@@ -123,7 +127,7 @@
     <button id="saveBtn">Save Map</button>
   </div>
   
-  <div id="status">Tip: Click and drag to select multiple cells</div>
+  <div id="status">Tip: Click and drag to select multiple cells. Double-click a cell to clear it.</div>
 
   <script>
     // Get references to elements
@@ -135,21 +139,40 @@
     const canvasContainer = document.getElementById('canvasContainer');
     const statusEl = document.getElementById('status');
 
+    const legendContainer = document.querySelector('.legend');
+    const eventLegendItem = document.createElement('div');
+    eventLegendItem.className = 'legend-item';
+    eventLegendItem.innerHTML = '<div class="legend-icon">📋</div><div>Event</div>';
+    legendContainer.appendChild(eventLegendItem);
+
+    // Create tooltip element for event hover
+    const tooltip = document.createElement('div');
+    tooltip.style.position = 'absolute';
+    tooltip.style.padding = '5px 10px';
+    tooltip.style.backgroundColor = 'rgba(0,0,0,0.8)';
+    tooltip.style.color = 'white';
+    tooltip.style.borderRadius = '4px';
+    tooltip.style.pointerEvents = 'none';
+    tooltip.style.display = 'none';
+    tooltip.style.zIndex = '20';
+    canvasContainer.appendChild(tooltip);
+
     // Grid configuration
     const gridSize = 6;
     const cellSize = canvas.width / gridSize;
     
     // Terrain types with associated icons and colors
     const terrainTypes = [
-      {name: 'rock', icon: '🪨', color: '#A0A0A0'},
-      {name: 'path', icon: '🛣️', color: '#C2B280'},
-      {name: 'dark', icon: '⬛', color: '#333333'},
-      {name: 'spinner', icon: '🔄', color: '#5DA9E9'},
-      {name: 'chute', icon: '⏬', color: '#FF7F7F'},
-      {name: 'teleporter', icon: '🌀', color: '#BA55D3'},
-      {name: 'start', icon: '🚩', color: '#77DD77'},
-      {name: 'end', icon: '🏁', color: '#FFD700'},
-      {name: 'ladder', icon: '🪜', color: '#CD853F'}
+        {name: 'rock', icon: '🪨', color: '#A0A0A0'},
+        {name: 'path', icon: '🛣️', color: '#C2B280'},
+        {name: 'dark', icon: '⬛', color: '#333333'},
+        {name: 'spinner', icon: '🔄', color: '#5DA9E9'},
+        {name: 'chute', icon: '⏬', color: '#FF7F7F'},
+        {name: 'teleporter', icon: '🌀', color: '#BA55D3'},
+        {name: 'start', icon: '🚩', color: '#77DD77'},
+        {name: 'end', icon: '🏁', color: '#FFD700'},
+        {name: 'ladder', icon: '🪜', color: '#CD853F'},
+        {name: 'event', icon: '📋', color: '#FF9966'}
     ];
 
     // Initialize grid with empty cells
@@ -171,37 +194,42 @@
 
     // Draw the grid
     function drawGrid() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Draw cells
-      for (let row = 0; row < gridSize; row++) {
-        for (let col = 0; col < gridSize; col++) {
-          const x = col * cellSize;
-          const y = row * cellSize;
-          
-          // Draw cell background
-          if (selectedCells.has(`${row},${col}`)) {
-            // Highlighted cell in selection mode
-            ctx.fillStyle = 'rgba(173, 216, 230, 0.5)'; // Light blue highlight
-          } else {
-            ctx.fillStyle = grid[row][col] ? grid[row][col].color : 'white';
-          }
-          ctx.fillRect(x, y, cellSize, cellSize);
-          
-          // Draw cell border
-          ctx.strokeStyle = '#888';
-          ctx.strokeRect(x, y, cellSize, cellSize);
-          
-          // Draw icon if a terrain is selected for this cell
-          if (grid[row][col]) {
-            ctx.font = `${cellSize * 0.6}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = grid[row][col].color === '#333333' ? 'white' : 'black';
-            ctx.fillText(grid[row][col].icon, x + cellSize/2, y + cellSize/2);
-          }
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw cells
+        for (let row = 0; row < gridSize; row++) {
+            for (let col = 0; col < gridSize; col++) {
+                const x = col * cellSize;
+                const y = row * cellSize;
+
+                // Draw cell background
+                if (selectedCells.has(`${row},${col}`)) {
+                    ctx.fillStyle = 'rgba(100, 149, 237, 0.5)'; // Highlighted cell in selection mode
+                } else {
+                    ctx.fillStyle = grid[row][col] ? grid[row][col].color : '#3a3a3a'; // Dark gray for empty cells
+                }
+                ctx.fillRect(x, y, cellSize, cellSize);
+
+                // Draw cell border
+                ctx.strokeStyle = '#555';
+                ctx.strokeRect(x, y, cellSize, cellSize);
+
+                // Draw icon if a terrain is selected for this cell
+                if (grid[row][col]) {
+                    ctx.font = `${cellSize * 0.4}px Arial`; // Smaller font
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = grid[row][col].color === '#333333' ? 'white' : 'white'; // Make all icons white
+
+                    if (grid[row][col].name === 'event') {
+                        // Draw event number - simplified approach
+                        ctx.fillText(grid[row][col].icon, x + cellSize / 2, y + cellSize / 2);
+                    } else {
+                        ctx.fillText(grid[row][col].icon, x + cellSize / 2, y + cellSize / 2);
+                    }
+                }
+            }
         }
-      }
     }
 
     // Clear selected cells
@@ -218,88 +246,191 @@
 
     // Create popup content
     function createPopup(row, col, mouseX, mouseY) {
-      let html = '';
-      terrainTypes.forEach(terrain => {
-        html += `<div class="popup-item" data-terrain="${terrain.name}">
-                   <div class="popup-icon">${terrain.icon}</div>
-                   <div>${terrain.name.charAt(0).toUpperCase() + terrain.name.slice(1)}</div>
-                 </div>`;
-      });
-      
-      // Add clear selection option
-      if (selectedCells.size > 0) {
-        html += `<div class="popup-divider"></div>`;
-        html += `<div class="popup-item" id="clearSelection">
-                  <div class="popup-icon">❌</div>
-                  <div>Clear Selection</div>
-                </div>`;
-      }
-      
-      popup.innerHTML = html;
-      
-      // Add event listeners to popup items
-      const items = popup.querySelectorAll('.popup-item[data-terrain]');
-      items.forEach(item => {
-        item.addEventListener('click', (e) => {
-          const terrainName = item.getAttribute('data-terrain');
-          const terrain = terrainTypes.find(t => t.name === terrainName);
-          
-          if (terrain) {
-            // Apply terrain to all selected cells
-            if (selectedCells.size > 0) {
-              for (let cellKey of selectedCells) {
-                const [r, c] = cellKey.split(',').map(Number);
-                grid[r][c] = terrain;
-              }
-              selectedCells.clear();
-            } else {
-              // Just apply to the clicked cell
-              grid[row][col] = terrain;
-            }
-            
-            drawGrid();
-            hidePopup();
-          }
+        let html = '';
+        terrainTypes.forEach(terrain => {
+            html += `<div class="popup-item" data-terrain="${terrain.name}">
+                    <div class="popup-icon">${terrain.icon}</div>
+                    <div>${terrain.name.charAt(0).toUpperCase() + terrain.name.slice(1)}</div>
+                    </div>`;
         });
-      });
-      
-      // Add event listener for clear selection
-      const clearSelectionBtn = document.getElementById('clearSelection');
-      if (clearSelectionBtn) {
-        clearSelectionBtn.addEventListener('click', clearSelectedCells);
-      }
-      
-      // Position the popup near the mouse cursor
-      const rect = canvas.getBoundingClientRect();
-      let popupX, popupY;
-      
-      // Use provided mouse coordinates (from mouseup or click event)
-      if (mouseX !== undefined && mouseY !== undefined) {
-        popupX = mouseX;
-        popupY = mouseY;
-      } else {
-        // Fallback to cell position
-        popupX = rect.left + (col * cellSize) + cellSize/2;
-        popupY = rect.top + (row * cellSize) + cellSize/2;
-      }
-      
-      // Position popup to not go off-screen
-      popup.style.display = 'block'; // Temporarily show to get dimensions
-      const popupWidth = popup.offsetWidth;
-      const popupHeight = popup.offsetHeight;
-      
-      // Adjust if off-screen
-      if (popupX + popupWidth > window.innerWidth) {
-        popupX = popupX - popupWidth;
-      }
-      
-      if (popupY + popupHeight > window.innerHeight) {
-        popupY = popupY - popupHeight;
-      }
-      
-      popup.style.left = `${popupX}px`;
-      popup.style.top = `${popupY}px`;
+        
+        // Add clear selection option
+        if (selectedCells.size > 0) {
+            html += `<div class="popup-divider"></div>`;
+            html += `<div class="popup-item" id="clearSelection">
+                    <div class="popup-icon">❌</div>
+                    <div>Clear Selection</div>
+                    </div>`;
+        }
+        
+        popup.innerHTML = html;
+        
+        // Add event listeners to popup items
+        const items = popup.querySelectorAll('.popup-item[data-terrain]');
+        items.forEach(item => {
+            item.addEventListener('click', (e) => {
+            const terrainName = item.getAttribute('data-terrain');
+            const terrain = terrainTypes.find(t => t.name === terrainName);
+            
+            if (terrain) {
+                if (terrainName === 'event') {
+                // For event terrain, we'll prompt for a number after closing the popup
+                hidePopup();
+                
+                // Store selected cells for later use with the event value
+                const eventCells = new Set(selectedCells);
+                
+                // Create a modal dialog for event number input
+                const modal = document.createElement('div');
+                modal.style.position = 'fixed';
+                modal.style.left = '0';
+                modal.style.top = '0';
+                modal.style.width = '100%';
+                modal.style.height = '100%';
+                modal.style.backgroundColor = 'rgba(0,0,0,0.7)';
+                modal.style.display = 'flex';
+                modal.style.alignItems = 'center';
+                modal.style.justifyContent = 'center';
+                modal.style.zIndex = '100';
+                
+                const dialog = document.createElement('div');
+                dialog.style.backgroundColor = '#333';
+                dialog.style.padding = '20px';
+                dialog.style.borderRadius = '8px';
+                dialog.style.color = '#e0e0e0';
+                dialog.style.maxWidth = '300px';
+                dialog.style.boxShadow = '0 4px 8px rgba(0,0,0,0.5)';
+                
+                dialog.innerHTML = `
+                    <h3 style="margin-top: 0;">Enter Event Number</h3>
+                    <input type="number" id="eventNumber" style="width: 100%; padding: 8px; margin: 10px 0; background: #444; border: 1px solid #555; color: white; border-radius: 4px;">
+                    <div style="display: flex; justify-content: flex-end; margin-top: 15px; gap: 10px;">
+                    <button id="cancelEventBtn" style="background-color: #555;">Cancel</button>
+                    <button id="confirmEventBtn" style="background-color: #3a6b3d;">Confirm</button>
+                    </div>
+                `;
+                
+                modal.appendChild(dialog);
+                document.body.appendChild(modal);
+                
+                // Focus the input
+                setTimeout(() => {
+                    document.getElementById('eventNumber').focus();
+                }, 100);
+                
+                // Handle cancel button
+                document.getElementById('cancelEventBtn').addEventListener('click', () => {
+                    document.body.removeChild(modal);
+                    selectedCells.clear();
+                    drawGrid();
+                });
+                
+                // Handle confirm button
+                document.getElementById('confirmEventBtn').addEventListener('click', () => {
+                    const eventNumber = document.getElementById('eventNumber').value;
+                    if (eventNumber) {
+                    // Create a custom event terrain with the number
+                    const eventTerrain = {
+                        ...terrain,
+                        value: eventNumber,
+                        icon: '📋' + eventNumber
+                    };
+                    
+                    // Apply to all selected cells
+                    for (let cellKey of eventCells) {
+                        const [r, c] = cellKey.split(',').map(Number);
+                        grid[r][c] = eventTerrain;
+                    }
+                    }
+                    
+                    document.body.removeChild(modal);
+                    selectedCells.clear();
+                    drawGrid();
+                });
+                
+                // Also handle Enter key
+                document.getElementById('eventNumber').addEventListener('keyup', (e) => {
+                    if (e.key === 'Enter') {
+                    document.getElementById('confirmEventBtn').click();
+                    }
+                });
+                
+                } else {
+                // Apply other terrain to all selected cells
+                if (selectedCells.size > 0) {
+                    for (let cellKey of selectedCells) {
+                    const [r, c] = cellKey.split(',').map(Number);
+                    grid[r][c] = terrain;
+                    }
+                    selectedCells.clear();
+                } else {
+                    // Just apply to the clicked cell
+                    grid[row][col] = terrain;
+                }
+                
+                drawGrid();
+                hidePopup();
+                }
+            }
+            });
+        });
+        
+        // Add event listener for clear selection
+        const clearSelectionBtn = document.getElementById('clearSelection');
+        if (clearSelectionBtn) {
+            clearSelectionBtn.addEventListener('click', clearSelectedCells);
+        }
+        
+        // Show popup to get its dimensions
+        popup.style.display = 'block';
+        
+        // Calculate grid position and center point
+        const rect = canvas.getBoundingClientRect();
+        const gridCenterY = rect.top + (canvas.height / 2);
+        
+        // Get the container's position
+        const containerRect = canvasContainer.getBoundingClientRect();
+        let popupX = mouseX - containerRect.left + 10;
+        let popupY = mouseY - containerRect.top;
+
+        // Position the popup 10px to the right of mouse cursor
+        //let popupX = mouseX + 2;
+        //let popupY = mouseY;
+
+        // Center vertically relative to the grid
+        //let popupY = gridCenterY - (popup.offsetHeight / 2);
+
+        // Ensure popup doesn't go off-screen
+        if (popupX + popup.offsetWidth > window.innerWidth) {
+            popupX = mouseX - popup.offsetWidth - 10;
+        }
+        
+        if (popupY + popup.offsetHeight > window.innerHeight) {
+            popupY = mouseY - popup.offsetHeight;
+        }
+        
+        if (popupY < 0) {
+            popupY = 0;
+        } else if (popupY + popup.offsetHeight > window.innerHeight) {
+            popupY = window.innerHeight - popup.offsetHeight;
+        }
+        
+        popup.style.left = `${popupX}px`;
+        popup.style.top = `${popupY}px`;
+
+        console.log('Popup Final:', {
+        mouseX: mouseX,
+        mouseY: mouseY,
+        popupX: popupX,
+        popupY: popupY,
+        offsetWidth: popup.offsetWidth,
+        offsetHeight: popup.offsetHeight,
+        finalLeft: popup.style.left,
+        finalTop: popup.style.top
+    });
+
     }
+    
 
     // Hide popup
     function hidePopup() {
@@ -345,6 +476,22 @@
       }
     });
 
+    // Handle double click to clear cell content
+    canvas.addEventListener('dblclick', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        const { row, col } = getGridPosition(x, y);
+        
+        if (row >= 0 && row < gridSize && col >= 0 && col < gridSize) {
+            // Clear the terrain from this cell
+            grid[row][col] = null;
+            drawGrid();
+            statusEl.textContent = `Cleared cell at row ${row+1}, column ${col+1}`;
+        }
+    });
+
     // Mouse down event (start of drag)
     canvas.addEventListener('mousedown', (e) => {
       // Only allow left mouse button
@@ -370,29 +517,44 @@
       hidePopup();
     });
 
-    // Mouse move event (during drag)
+    // Mouse move event (during drag and for tooltips)
     canvas.addEventListener('mousemove', (e) => {
-      mousePosition = {x: e.clientX, y: e.clientY};
-      
-      if (!isMouseDown) return;
-      
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      
-      const { row, col } = getGridPosition(x, y);
-      
-      if (row >= 0 && row < gridSize && col >= 0 && col < gridSize) {
+    mousePosition = {x: e.clientX, y: e.clientY};
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const { row, col } = getGridPosition(x, y);
+    
+    if (row >= 0 && row < gridSize && col >= 0 && col < gridSize) {
+        // Show tooltip for event cells - position exactly at cursor
+        if (!isMouseDown && grid[row][col] && grid[row][col].name === 'event') {
+            tooltip.textContent = `Event: ${grid[row][col].value}`;
+            tooltip.style.display = 'block';
+            
+            // Position tooltip exactly at cursor
+            tooltip.style.left = `${e.clientX}px`;
+            tooltip.style.top = `${e.clientY}px`;
+        } else {
+            tooltip.style.display = 'none';
+        }
+        
+        // Handle drag selection
+        if (isMouseDown) {
         // Only update if we moved to a new cell
         if (row !== lastHoveredCell.row || col !== lastHoveredCell.col) {
-          lastHoveredCell = { row, col };
-          selectedCells.add(`${row},${col}`);
-          drawGrid();
-          
-          // Update status with selection count
-          statusEl.textContent = `Selected ${selectedCells.size} cells`;
+            lastHoveredCell = { row, col };
+            selectedCells.add(`${row},${col}`);
+            drawGrid();
+            
+            // Update status with selection count
+            statusEl.textContent = `Selected ${selectedCells.size} cells`;
         }
-      }
+        }
+    } else {
+        tooltip.style.display = 'none';
+    }
     });
 
     // Mouse up event (end of drag)
@@ -411,6 +573,7 @@
     canvas.addEventListener('mouseleave', (e) => {
       // Don't cancel the selection, just stop tracking
       isMouseDown = false;
+      tooltip.style.display = 'none';
     });
 
     // Hide popup when clicking outside canvas or popup
@@ -430,7 +593,7 @@
       selectedCells.clear();
       drawGrid();
       hidePopup();
-      statusEl.textContent = "Tip: Click and drag to select multiple cells";
+      statusEl.textContent = "Tip: Click and drag to select multiple cells. Double-click a cell to clear it.";
     });
 
     // Save button functionality
