@@ -1,360 +1,263 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Github Page Index</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: #333;
-            font-family: Arial, sans-serif;
-            overflow: hidden;
-        }
-        canvas {
-            position: absolute;
-            z-index: 1;
-            top: 0;
-            left: 0;
-        }
-        a {
-            position: relative;
-            z-index: 2;
-            color: white;
-            text-decoration: none;
-            font-size: 2rem;
-            padding: 15px 30px;
-            background-color: rgba(0, 0, 0, 0.5);
-            border-radius: 8px;
-            transition: all 0.3s ease;
-        }
-        a:hover {
-            background-color: rgba(0, 0, 0, 0.7);
-            transform: scale(1.05);
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Github Page Index</title>
+<style>
+body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #333;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+}
+
+canvas {
+    position: absolute;
+    z-index: 1;
+    top: 0;
+    left: 0;
+}
+
+/* New container for vertical links */
+.nav-container {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 20px;
+}
+
+/* Individual links */
+.nav-container a {
+    color: white;
+    text-decoration: none;
+    font-size: 2rem;
+    padding: 15px 30px;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.nav-container a:hover {
+    background-color: rgba(0, 0, 0, 0.7);
+    transform: scale(1.05);
+}
+</style>
 </head>
 <body>
-    <canvas id="dotsCanvas"></canvas>
-    <table border=1>
-        <tr> <td><a href="boxes.html">📦 Boxes</a></td></tr>
-    <tr><td><a href="rocks.html">🪨 Space Rocks</a></td></tr>
-        </table>
-    
+<canvas id="dotsCanvas"></canvas>
+<div class="nav-container">
+    <a href="boxes.html">📦 Boxes</a>
+    <a href="rocks.html">🪨 Space Rocks</a>
+</div>
+<script>
+// Canvas setup
+const canvas = document.getElementById('dotsCanvas');
+const ctx = canvas.getContext('2d');
 
-    <script>
-        // Canvas setup
-        const canvas = document.getElementById('dotsCanvas');
-        const ctx = canvas.getContext('2d');
+// Make canvas full screen
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// Colors array
+const colors = [
+    '#4C4C4C', // Red
+    '#959595', // Green
+    '#1D1D1D', // Blue
+    '#343434', // Purple
+    '#ADADAD', // Orange
+    '#E1E1E1', // Yellow
+    '#000000' // Black
+];
+
+// Dots configuration
+const dots = [];
+const particles = [];
+const numberOfDots = 22;
+const dotRadius = 6;
+const minSpeed = 1;
+const maxSpeed = 3;
+
+// Create dots
+function createDots() {
+    for (let i = 0; i < numberOfDots; i++) {
+        createDot();
+    }
+}
+
+// Create a single dot
+function createDot() {
+    dots.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        radius: Math.random() * (dotRadius - 2) + 2,
+        dx: (Math.random() - 0.5) * (maxSpeed - minSpeed) + minSpeed,
+        dy: (Math.random() - 0.5) * (maxSpeed - minSpeed) + minSpeed,
+        alpha: Math.random() * 0.5 + 0.5,
+        color: colors[Math.floor(Math.random() * colors.length)]
+    });
+}
+
+// Draw dots
+function drawDots() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    dots.forEach(dot => {
+        ctx.beginPath();
+        ctx.arc(dot.x, dot.y, dot.radius, 0, Math.PI * 2);
+        ctx.fillStyle = dot.color === "#000000"
+            ? `rgba(0, 0, 0, ${dot.alpha})`
+            : `${hexToRgba(dot.color, dot.alpha)}`;
+        ctx.fill();
+    });
+}
+
+// Draw explosion particles
+function drawParticles() {
+    particles.forEach(particle => {
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+        ctx.fillStyle = particle.color === "#000000"
+            ? `rgba(0, 0, 0, ${particle.alpha})`
+            : `${hexToRgba(particle.color, particle.alpha)}`;
+        ctx.fill();
+    });
+}
+
+// Convert hex color to rgba
+function hexToRgba(hex, alpha) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// Update dot positions
+function updateDots() {
+    for (let i = dots.length - 1; i >= 0; i--) {
+        const dot = dots[i];
+        dot.x += dot.dx;
+        dot.y += dot.dy;
         
-        // Make canvas full screen
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+        if (dot.x < dot.radius || dot.x > canvas.width - dot.radius) {
+            dot.dx = -dot.dx * (0.8 + Math.random() * 0.4);
+            dot.dy = dot.dy + (Math.random() - 0.5);
+            normalizeDotSpeed(dot);
         }
         
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
-        
-        // Colors array
-        const colors = [
-            '#4C4C4C', // Red
-            '#959595', // Green
-            '#1D1D1D', // Blue
-            '#343434', // Purple
-            '#ADADAD', // Orange
-            '#E1E1E1', // Yellow
-            '#000000'  // Black
-        ];
-        
-        // Dots configuration
-        const dots = [];
-        const particles = [];
-        const numberOfDots = 22;
-        const dotRadius = 6;
-        const minSpeed = 1;
-        const maxSpeed = 3;
-        
-        // Create dots
-        function createDots() {
-            for (let i = 0; i < numberOfDots; i++) {
-                createDot();
+        if (dot.y < dot.radius || dot.y > canvas.height - dot.radius) {
+            dot.dy = -dot.dy * (0.8 + Math.random() * 0.4);
+            dot.dx = dot.dx + (Math.random() - 0.5);
+            normalizeDotSpeed(dot);
+        }
+    }
+}
+
+// Update explosion particles
+function updateParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const particle = particles[i];
+        particle.x += particle.dx;
+        particle.y += particle.dy;
+        particle.dy += 0.05;
+        particle.alpha -= 0.01;
+        if (particle.alpha <= 0) {
+            particles.splice(i, 1);
+        }
+    }
+}
+
+// Check for collisions
+function checkCollisions() {
+    for (let i = 0; i < dots.length; i++) {
+        for (let j = i + 1; j < dots.length; j++) {
+            const dot1 = dots[i];
+            const dot2 = dots[j];
+            const dx = dot1.x - dot2.x;
+            const dy = dot1.y - dot2.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < dot1.radius + dot2.radius) {
+                const midX = (dot1.x + dot2.x) / 2;
+                const midY = (dot1.y + dot2.y) / 2;
+                explode(midX, midY, [dot1.color, dot2.color]);
+                dots.splice(j, 1);
+                dots.splice(i, 1);
+                setTimeout(() => {
+                    createDot();
+                    createDot();
+                }, 1000);
+                i--;
+                break;
             }
         }
-        
-        // Create a single dot
-        function createDot() {
-            dots.push({
-                x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height,
-                radius: Math.random() * (dotRadius - 2) + 2,
-                dx: (Math.random() - 0.5) * (maxSpeed - minSpeed) + minSpeed,
-                dy: (Math.random() - 0.5) * (maxSpeed - minSpeed) + minSpeed,
-                alpha: Math.random() * 0.5 + 0.5, // Opacity variation
-                color: colors[Math.floor(Math.random() * colors.length)] // Random color
-            });
+    }
+}
+
+// Explode function - create particles at the given position
+function explode(x, y, colors) {
+    const numParticles = 50;
+    for (let i = 0; i < numParticles; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const velocity = 1 + Math.random() * 3;
+        let particleColor;
+        const colorChoice = Math.random();
+        if (colorChoice < 0.4) {
+            particleColor = colors[0];
+        } else if (colorChoice < 0.8) {
+            particleColor = colors[1];
+        } else {
+            particleColor = ["#FFFFFF", "#FFFF99", "#FFD700"][Math.floor(Math.random() * 3)];
         }
-        
-        // Draw dots
-        function drawDots() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            dots.forEach(dot => {
-                // Main dot
-                ctx.beginPath();
-                ctx.arc(dot.x, dot.y, dot.radius, 0, Math.PI * 2);
-                ctx.fillStyle = dot.color === "#000000" 
-                    ? `rgba(0, 0, 0, ${dot.alpha})` 
-                    : `${hexToRgba(dot.color, dot.alpha)}`;
-                ctx.fill();
-                
-                // Create a subtle glow effect
-                ctx.beginPath();
-                ctx.arc(dot.x, dot.y, dot.radius * 1.5, 0, Math.PI * 2);
-                ctx.fillStyle = dot.color === "#000000" 
-                    ? `rgba(0, 0, 0, ${dot.alpha * 0.3})` 
-                    : `${hexToRgba(dot.color, dot.alpha * 0.3)}`;
-                ctx.fill();
-            });
-        }
-        
-        // Draw explosion particles
-        function drawParticles() {
-            particles.forEach(particle => {
-                ctx.beginPath();
-                ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
-                ctx.fillStyle = particle.color === "#000000" 
-                    ? `rgba(0, 0, 0, ${particle.alpha})` 
-                    : `${hexToRgba(particle.color, particle.alpha)}`;
-                ctx.fill();
-            });
-        }
-        
-        // Convert hex color to rgba
-        function hexToRgba(hex, alpha) {
-            const r = parseInt(hex.slice(1, 3), 16);
-            const g = parseInt(hex.slice(3, 5), 16);
-            const b = parseInt(hex.slice(5, 7), 16);
-            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-        }
-        
-        // Update dot positions
-        function updateDots() {
-            for (let i = dots.length - 1; i >= 0; i--) {
-                const dot = dots[i];
-                
-                // Update position
-                dot.x += dot.dx;
-                dot.y += dot.dy;
-                
-                // Bounce off the edges with random angle
-                if (dot.x < dot.radius || dot.x > canvas.width - dot.radius) {
-                    dot.dx = -dot.dx * (0.8 + Math.random() * 0.4);
-                    // Add slight vertical direction change
-                    dot.dy = dot.dy + (Math.random() - 0.5);
-                    // Ensure speed stays reasonable
-                    normalizeDotSpeed(dot);
-                }
-                
-                if (dot.y < dot.radius || dot.y > canvas.height - dot.radius) {
-                    dot.dy = -dot.dy * (0.8 + Math.random() * 0.4);
-                    // Add slight horizontal direction change
-                    dot.dx = dot.dx + (Math.random() - 0.5);
-                    // Ensure speed stays reasonable
-                    normalizeDotSpeed(dot);
-                }
-                
-                // Keep dots within canvas bounds
-                if (dot.x < dot.radius) dot.x = dot.radius;
-                if (dot.x > canvas.width - dot.radius) dot.x = canvas.width - dot.radius;
-                if (dot.y < dot.radius) dot.y = dot.radius;
-                if (dot.y > canvas.height - dot.radius) dot.y = canvas.height - dot.radius;
-            }
-        }
-        
-        // Update explosion particles
-        function updateParticles() {
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const particle = particles[i];
-                
-                // Update position
-                particle.x += particle.dx;
-                particle.y += particle.dy;
-                
-                // Apply gravity
-                particle.dy += 0.05;
-                
-                // Fade out
-                particle.alpha -= 0.01;
-                
-                // Remove faded particles
-                if (particle.alpha <= 0) {
-                    particles.splice(i, 1);
-                }
-            }
-        }
-        
-        // Check for collisions
-        function checkCollisions() {
-            for (let i = 0; i < dots.length; i++) {
-                for (let j = i + 1; j < dots.length; j++) {
-                    const dot1 = dots[i];
-                    const dot2 = dots[j];
-                    
-                    const dx = dot1.x - dot2.x;
-                    const dy = dot1.y - dot2.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    // If dots are touching
-                    if (distance < dot1.radius + dot2.radius) {
-                        // Create explosion at the midpoint
-                        const midX = (dot1.x + dot2.x) / 2;
-                        const midY = (dot1.y + dot2.y) / 2;
-                        
-                        // Create explosion with blended colors
-                        explode(midX, midY, [dot1.color, dot2.color]);
-                        
-                        // Remove the collided dots
-                        dots.splice(j, 1);
-                        dots.splice(i, 1);
-                        
-                        // Create new dots to maintain the count
-                        setTimeout(() => {
-                            createDot();
-                            createDot();
-                        }, 1000);
-                        
-                        // Adjust loop indices after removal
-                        i--;
-                        break;
-                    }
-                }
-            }
-        }
-        
-        // Explode function - create particles at the given position
-        function explode(x, y, colors) {
-            const numParticles = 50; // Number of particles in the explosion
-            
-            for (let i = 0; i < numParticles; i++) {
-                // Random angle and velocity
-                const angle = Math.random() * Math.PI * 2;
-                const velocity = 1 + Math.random() * 3;
-                
-                // Color selection - either one of the dot colors or a blend
-                let particleColor;
-                const colorChoice = Math.random();
-                
-                if (colorChoice < 0.4) {
-                    particleColor = colors[0];
-                } else if (colorChoice < 0.8) {
-                    particleColor = colors[1];
-                } else {
-                    // For some particles, use a bright explosion color
-                    particleColor = ["#FFFFFF", "#FFFF99", "#FFD700"][Math.floor(Math.random() * 3)];
-                }
-                
-                // Create particle
-                particles.push({
-                    x: x,
-                    y: y,
-                    radius: 0.5 + Math.random() * 2,
-                    dx: Math.cos(angle) * velocity,
-                    dy: Math.sin(angle) * velocity,
-                    alpha: 1,
-                    color: particleColor,
-                    // Add variation to fade rate
-                    fadeSpeed: 0.005 + Math.random() * 0.015
-                });
-            }
-            
-            // Add a central flash
-            for (let i = 0; i < 10; i++) {
-                particles.push({
-                    x: x,
-                    y: y,
-                    radius: 1 + Math.random() * 3,
-                    dx: (Math.random() - 0.5) * 2,
-                    dy: (Math.random() - 0.5) * 2,
-                    alpha: 1,
-                    color: "#FFFFFF",
-                    fadeSpeed: 0.03 + Math.random() * 0.02
-                });
-            }
-        }
-        
-        // Normalize dot speed to prevent too fast or too slow dots
-        function normalizeDotSpeed(dot) {
-            const speed = Math.sqrt(dot.dx * dot.dx + dot.dy * dot.dy);
-            if (speed > maxSpeed) {
-                dot.dx = (dot.dx / speed) * maxSpeed;
-                dot.dy = (dot.dy / speed) * maxSpeed;
-            } else if (speed < minSpeed) {
-                dot.dx = (dot.dx / speed) * minSpeed;
-                dot.dy = (dot.dy / speed) * minSpeed;
-            }
-        }
-        
-        // Connect nearby dots with lines
-        function connectDots() {
-            const maxDistance = 150;
-            
-            for (let i = 0; i < dots.length; i++) {
-                for (let j = i + 1; j < dots.length; j++) {
-                    const dot1 = dots[i];
-                    const dot2 = dots[j];
-                    
-                    const dx = dot1.x - dot2.x;
-                    const dy = dot1.y - dot2.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (distance < maxDistance) {
-                        const opacity = 1 - (distance / maxDistance);
-                        
-                        // Get average color of the two dots
-                        const color1 = dot1.color;
-                        
-                        // Use first dot's color with reduced opacity for the line
-                        ctx.beginPath();
-                        ctx.moveTo(dot1.x, dot1.y);
-                        ctx.lineTo(dot2.x, dot2.y);
-                        ctx.strokeStyle = color1 === "#000000" 
-                            ? `rgba(0, 0, 0, ${opacity * 0.2})` 
-                            : `${hexToRgba(color1, opacity * 0.2)}`;
-                        ctx.lineWidth = 1;
-                        ctx.stroke();
-                    }
-                }
-            }
-        }
-        
-        // Animation loop
-        function animate() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw and update dots
-            drawDots();
-            updateDots();
-            connectDots();
-            
-            // Draw and update particles
-            drawParticles();
-            updateParticles();
-            
-            // Check for collisions
-            checkCollisions();
-            
-            requestAnimationFrame(animate);
-        }
-        
-        // Initialize and start animation
-        createDots();
-        animate();
-    </script>
+        particles.push({
+            x: x,
+            y: y,
+            radius: 0.5 + Math.random() * 2,
+            dx: Math.cos(angle) * velocity,
+            dy: Math.sin(angle) * velocity,
+            alpha: 1,
+            color: particleColor,
+            fadeSpeed: 0.005 + Math.random() * 0.015
+        });
+    }
+}
+
+// Normalize dot speed to prevent too fast or too slow dots
+function normalizeDotSpeed(dot) {
+    const speed = Math.sqrt(dot.dx * dot.dx + dot.dy * dot.dy);
+    if (speed > maxSpeed) {
+        dot.dx = (dot.dx / speed) * maxSpeed;
+        dot.dy = (dot.dy / speed) * maxSpeed;
+    } else if (speed < minSpeed) {
+        dot.dx = (dot.dx / speed) * minSpeed;
+        dot.dy = (dot.dy / speed) * minSpeed;
+    }
+}
+
+// Animation loop
+function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawDots();
+    updateDots();
+    drawParticles();
+    updateParticles();
+    checkCollisions();
+    requestAnimationFrame(animate);
+}
+
+// Initialize and start animation
+createDots();
+animate();
+</script>
 </body>
 </html>
