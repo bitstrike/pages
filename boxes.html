@@ -113,17 +113,61 @@
             this.focus();
         });
 
+        //  handle box and comment generation
+        document.getElementById('boxForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const message = document.getElementById('message').value;
+        const boxStyle = parseInt(document.getElementById('boxStyle').value);
+        const commentStyle = document.getElementById('commentStyle').value;
+        const maxLength = document.getElementById('maxLength').value !== '' ? parseInt(document.getElementById('maxLength').value) : null;
+        
+   
+
         document.getElementById('boxForm').addEventListener('submit', function(event) {
             event.preventDefault();
             const message = document.getElementById('message').value;
             const boxStyle = parseInt(document.getElementById('boxStyle').value);
             const commentStyle = document.getElementById('commentStyle').value;
             const maxLength = document.getElementById('maxLength').value !== '' ? parseInt(document.getElementById('maxLength').value) : null;
-            const box = createBox(message, boxStyle, maxLength, commentStyle);
-            document.getElementById('output').textContent = box;
+            
+            // First create the box with proper line wrapping
+            const box = createBox(message, boxStyle, maxLength);
+            
+            // Then format as comment if a comment style is selected
+            const formattedOutput = formatComment(box, null, commentStyle);
+            
+            document.getElementById('output').textContent = formattedOutput;
         });
 
-        function createBox(origMessage, boxStyle = 2, maxLength = null, commentStyle = 'c') {
+        document.getElementById('commentStyle').addEventListener('change', function() {
+            const output = document.getElementById('output');
+            if (output.textContent) {
+                // Get the current message (not the formatted output)
+                const message = document.getElementById('message').value;
+                const boxStyle = parseInt(document.getElementById('boxStyle').value);
+                const maxLength = document.getElementById('maxLength').value !== '' ? parseInt(document.getElementById('maxLength').value) : null;
+                
+                // Recreate the box
+                const box = createBox(message, boxStyle, maxLength);
+                
+                // Format with the new comment style
+                const formattedOutput = formatComment(box, null, this.value);
+                output.textContent = formattedOutput;
+            }
+        });
+
+
+        // First create the box
+        const box = createBox(message, boxStyle, maxLength);
+        
+        // Then format as comment if needed
+        const formattedOutput = formatComment(box, maxLength, commentStyle);
+        
+        document.getElementById('output').textContent = formattedOutput;
+        });
+
+        // Function to create the box
+        function createBox(origMessage, boxStyle = 2, maxLength = null) {
             let topBottom, corners, vertical;
             if (boxStyle === 1) {
                 topBottom = '─';
@@ -134,24 +178,39 @@
                 corners = '╔╗╚╝';
                 vertical = '║';
             }
+            
+            // First wrap the text based on maxLength (if provided)
             let lines;
             if (maxLength && origMessage.length > maxLength) {
                 lines = wrapText(origMessage, maxLength);
             } else {
                 lines = [origMessage];
             }
+            
+            // Add padding around each line
             const paddedLines = lines.map(line => ' ' + line + ' ');
+            
+            // Find the width needed for the box (based on the longest line)
             const contentWidth = Math.max(...paddedLines.map(line => line.length));
+            
+            // Create the box elements
             const top = `${corners[0]}${topBottom.repeat(contentWidth)}${corners[1]}`;
             const bottom = `${corners[2]}${topBottom.repeat(contentWidth)}${corners[3]}░`;
+            
+            // Ensure all content lines are the same width for a uniform box
             const content = paddedLines.map(line => {
                 const padded = line.padEnd(contentWidth);
                 return `${vertical}${padded}${vertical}░`;
             });
+            
+            // Create the shadow
             const shadowWidth = contentWidth + 1;
             const shadow = "  " + "░".repeat(shadowWidth);
+            
+            // Return the complete box
             return [top, ...content, bottom, shadow].join('\n');
-        }
+            }
+        
 
         function wrapText(text, maxLength) {
             const words = text.split(' ');
@@ -170,30 +229,56 @@
 
 
         // Function to format text as a comment in the specified style
-        function formatComment(buf, style) {
-            // Input validation
-            if (typeof buf !== 'string') {
-                throw new Error('buf must be a string');
-            }
-            if (!Number.isInteger(style) || ![SHELL, CLANG, PYTHON].includes(style)) {
-                throw new Error('Invalid style constant');
-            }
-
-            // Remove any existing comment characters
-            buf = buf.replace(/^\/\/(.*)$/gm, '$1')
-                    .replace(/^#(.*)$/gm, '$1')
-                    .replace(/^\/\*([\s\S]*?)\*\/$/gm, '$1')
-                    .trim();
-
-            // Format based on style
+        // Function to format text as a comment in the specified style
+        function formatComment(buf, maxLength, style) {
+        // Input validation
+        if (typeof buf !== 'string') {
+            throw new Error('buf must be a string');
+        }
+        
+        // First check if this is already a box (contains box drawing characters)
+        const isBox = /[┌┐└┘│─╔╗╚╝║═]/.test(buf);
+        
+        if (isBox) {
+            // If it's already a box, format each line individually
+            const lines = buf.split('\n');
+            let prefix;
+            
+            // Determine comment prefix based on style
             switch (style) {
-                case SHELL:
-                    return `# ${buf}`;
-                case CLANG:
-                    return `// ${buf}`;
-                case PYTHON:
-                    return `# ${buf}`;
+            case 'shell':
+            case 'python':
+                prefix = '# ';
+                break;
+            case 'c':
+                prefix = '// ';
+                break;
+            default:
+                prefix = '// ';
             }
+            
+            // Return the commented box
+            return lines.map(line => prefix + line).join('\n');
+        } else {
+            // If it's plain text, first wrap it based on maxLength
+            let lines;
+            if (maxLength && buf.length > maxLength) {
+            lines = wrapText(buf, maxLength);
+            } else {
+            lines = [buf];
+            }
+            
+            // Then format each line with the appropriate comment style
+            switch (style) {
+            case 'shell':
+            case 'python':
+                return lines.map(line => '# ' + line).join('\n');
+            case 'c':
+                return lines.map(line => '// ' + line).join('\n');
+            default:
+                return lines.map(line => '// ' + line).join('\n');
+            }
+        }
         }
 
     </script>
