@@ -278,16 +278,23 @@
                 return this.shootTimer <= 0; // Return true if it's time to shoot
             }
 
-            shoot(bulletSpeed) {
+            shoot(bulletSpeed, targetX, targetY) {
                 // Reset timer (will be set to shoot interval in game code)
-                this.shootTimer = 0;
+                this.shootTimer = 1000; // Set to 1 second
+
+                // Calculate direction to player
+                const deltaX = targetX - this.x;
+                const deltaY = targetY - this.y;
+                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                const vx = (deltaX / distance) * bulletSpeed;
+                const vy = (deltaY / distance) * bulletSpeed;
 
                 // Return bullet parameters
                 return {
                     x: this.x,
-                    y: this.y + this.size/2,
-                    vx: 0,
-                    vy: bulletSpeed
+                    y: this.y,
+                    vx: vx,
+                    vy: vy
                 };
             }
         }
@@ -489,7 +496,7 @@
                 size: 30, // Size in pixels
                 speed: 1.5 + (currentLevel * 0.2), // Speed increases with level
                 bulletSpeed: 3 + (currentLevel * 0.3), // Bullet speed increases with level
-                shootInterval: Math.max(1000, 3000 - (currentLevel * 200)), // Time between shots (ms)
+                shootInterval: 1000, // Set to 1 second
                 bulletRadius: 3,
                 bulletColor: 'red'
             };
@@ -581,6 +588,7 @@
             ufos = [];
             ufoBullets = [];
             bossData = null;
+            bossLevelNumber = 1; // Reset the boss level number
 
             // Start game loop
             requestAnimationFrame(gameLoop);
@@ -752,7 +760,7 @@
                     // Update UFO and check if it should shoot
                     if (ufo.update(deltaTime)) {
                         // Time to shoot - create bullet
-                        const bulletData = ufo.shoot(bossData.config.bulletSpeed);
+                        const bulletData = ufo.shoot(bossData.config.bulletSpeed, ship.x, ship.y);
                         ufoBullets.push(new UFOBullet(
                             bulletData.x,
                             bulletData.y,
