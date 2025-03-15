@@ -99,6 +99,10 @@
         let bossLevelNumber = 1; // Keep track of the current boss level
         let bossData = null; // Add this line
 
+        // Load UFO image
+        const ufoImage = new Image();
+        ufoImage.src = 'shrek-ufo.png'; // Make sure 'shrek-ufo.png' is in the same directory or provide the correct path
+
         // Key states
         const keys = {
             ArrowUp: false,
@@ -242,24 +246,7 @@
             draw() {
                 ctx.save();
                 ctx.translate(this.x, this.y);
-
-                // UFO body (saucer shape)
-                ctx.fillStyle = 'lightblue';
-                ctx.strokeStyle = 'white';
-                ctx.lineWidth = 2;
-
-                // Draw saucer
-                ctx.beginPath();
-                ctx.ellipse(0, 0, this.size/2, this.size/4, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-
-                // Draw dome
-                ctx.beginPath();
-                ctx.ellipse(0, -this.size/8, this.size/4, this.size/6, 0, Math.PI, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-
+                ctx.drawImage(ufoImage, -this.radius, -this.radius, this.size, this.size);
                 ctx.restore();
             }
 
