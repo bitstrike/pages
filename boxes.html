@@ -56,6 +56,12 @@
             border-radius: 5px;
             margin-top: 20px;
         }
+        .style-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -63,11 +69,23 @@
     <form id="boxForm">
         <label for="message">📝 Message:</label>
         <textarea id="message" name="message" rows="4" required></textarea>
-        <label for="boxStyle">🎨 Box Style:</label>
-        <select id="boxStyle" name="boxStyle">
-            <option value="1">Single Line</option>
-            <option value="2" selected>Double Line</option>
-        </select>
+        <div class="style-controls">
+            <div>
+                <label for="boxStyle">🎨 Box Style:</label>
+                <select id="boxStyle" name="boxStyle">
+                    <option value="1">Single Line</option>
+                    <option value="2" selected>Double Line</option>
+                </select>
+            </div>
+            <div>
+                <label for="commentStyle">💬 Comment:</label>
+                <select id="commentStyle" name="commentStyle">
+                    <option value="c">C code</option>
+                    <option value="shell">Shell</option>
+                    <option value="python">Python</option>
+                </select>
+            </div>
+        </div>
         <label for="maxLength">📏 Max Length:</label>
         <input type="number" id="maxLength" name="maxLength" min="1">
         <input type="submit" value="Generate Box 🚀">
@@ -95,12 +113,13 @@
             event.preventDefault();
             const message = document.getElementById('message').value;
             const boxStyle = parseInt(document.getElementById('boxStyle').value);
+            const commentStyle = document.getElementById('commentStyle').value;
             const maxLength = document.getElementById('maxLength').value !== '' ? parseInt(document.getElementById('maxLength').value) : null;
-            const box = createBox(message, boxStyle, maxLength);
+            const box = createBox(message, boxStyle, maxLength, commentStyle);
             document.getElementById('output').textContent = box;
         });
 
-        function createBox(origMessage, boxStyle = 2, maxLength = null) {
+        function createBox(origMessage, boxStyle = 2, maxLength = null, commentStyle = 'c') {
             let topBottom, corners, vertical;
             if (boxStyle === 1) {
                 topBottom = '─';
