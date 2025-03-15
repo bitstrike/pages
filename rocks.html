@@ -93,6 +93,11 @@
         sounds.shipExplode.volume = 0.6; // Set appropriate volume for ship explosion
         sounds.thruster.volume = 0.4; // Adjust as needed
 
+        let inBossLevel = false;
+        let ufos = [];
+        let ufoBullets = [];
+        let bossData = null; // Add this line
+
         // Key states
         const keys = {
             ArrowUp: false,
@@ -222,6 +227,70 @@
             }
         }
 
+        class UFO {
+            constructor(x, y, size, speed, direction) {
+                this.x = x;
+                this.y = y;
+                this.radius = size / 2;
+                this.size = size;
+                this.speed = speed;
+                this.direction = direction; // 1 for right, -1 for left
+                this.shootTimer = 0;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // UFO body (saucer shape)
+                ctx.fillStyle = 'lightblue';
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2;
+
+                // Draw saucer
+                ctx.beginPath();
+                ctx.ellipse(0, 0, this.size/2, this.size/4, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Draw dome
+                ctx.beginPath();
+                ctx.ellipse(0, -this.size/8, this.size/4, this.size/6, 0, Math.PI, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            update(deltaTime) {
+                // Move horizontally
+                this.x += this.speed * this.direction;
+
+                // Check boundary and move down when reached edge
+                if (this.x < this.size/2 || this.x > canvas.width - this.size/2) {
+                    this.direction *= -1; // Reverse direction
+                    this.y += this.size; // Move down
+                }
+
+                // Update shoot timer
+                this.shootTimer -= deltaTime;
+                return this.shootTimer <= 0; // Return true if it's time to shoot
+            }
+
+            shoot(bulletSpeed) {
+                // Reset timer (will be set to shoot interval in game code)
+                this.shootTimer = 0;
+
+                // Return bullet parameters
+                return {
+                    x: this.x,
+                    y: this.y + this.size/2,
+                    vx: 0,
+                    vy: bulletSpeed
+                };
+            }
+        }
+
         // Asteroid class
         class Asteroid {
             constructor(x, y, radius, level = 1) {
@@ -335,6 +404,36 @@
             }
         }
 
+        class UFOBullet {
+            constructor(x, y, vx, vy, radius, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.radius = radius;
+                this.color = color;
+                this.alive = true;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (this.y > canvas.height + this.radius) {
+                    this.alive = false;
+                }
+            }
+        }
+
         // Particle class for explosions and thruster effects
         class Particle {
             constructor(x, y, radius, angle, color, lifeTime) {
@@ -378,6 +477,46 @@
             }
         }
 
+        function bossLevel() {
+            // Determine current level (affects number of UFOs)
+            const currentLevel = Math.floor(score / 5000) + 1;
+
+            // Configuration settings for UFOs
+            const ufoConfig = {
+                count: currentLevel, // Number of UFOs increases with each level
+                size: 30, // Size in pixels
+                speed: 1.5 + (currentLevel * 0.2), // Speed increases with level
+                bulletSpeed: 3 + (currentLevel * 0.3), // Bullet speed increases with level
+                shootInterval: Math.max(1000, 3000 - (currentLevel * 200)), // Time between shots (ms)
+                bulletRadius: 3,
+                bulletColor: 'red'
+            };
+
+            // Create UFO objects
+            const ufos = [];
+            for (let i = 0; i < ufoConfig.count; i++) {
+                // Distribute UFOs evenly across the top of the screen
+                const x = (canvas.width / (ufoConfig.count + 1)) * (i + 1);
+                const y = ufoConfig.size;
+
+                ufos.push({
+                    x: x,
+                    y: y,
+                    radius: ufoConfig.size / 2, // For collision detection
+                    size: ufoConfig.size,
+                    speed: ufoConfig.speed,
+                    direction: Math.random() > 0.5 ? 1 : -1, // Random initial direction
+                    shootTimer: Math.random() * ufoConfig.shootInterval // Randomize initial shot timing
+                });
+            }
+
+            return {
+                ufos: ufos,
+                level: currentLevel,
+                config: ufoConfig
+            };
+        }
+
         // Detect collisions between two objects
         function detectCollision(obj1, obj2) {
             const dx = obj1.x - obj2.x;
@@ -406,7 +545,7 @@
             // Create ship at center of screen
             ship = new Ship(canvas.width / 2, canvas.height / 2);
             ship.makeInvulnerable(3000); // 3 seconds invulnerability at start
-            
+
             // Create initial asteroids
             asteroids = []; // Clear any existing asteroids
             for (let i = 0; i < 4; i++) {
@@ -435,6 +574,12 @@
             // Reset last time for animation
             lastTime = 0;
 
+            // Reset boss level variables
+            inBossLevel = false;
+            ufos = [];
+            ufoBullets = [];
+            bossData = null;
+
             // Start game loop
             requestAnimationFrame(gameLoop);
         }
@@ -461,7 +606,7 @@
             }
 
             ship.thrusting = keys.ArrowUp;
-            
+
             if (ship.thrusting) {
                 if (sounds.thruster.paused) {
                     sounds.thruster.play().catch(error => console.log('Audio playback failed:', error));
@@ -491,11 +636,11 @@
                 // Check for collision with ship
                 if (!ship.invulnerable && detectCollision(ship, asteroid)) {
                     createExplosion(ship.x, ship.y, 'rgba(255, 255, 255, 0.8)', 40);
-                    
+
                     // Play ship explosion sound
                     sounds.shipExplode.currentTime = 0;
                     sounds.shipExplode.play().catch(error => console.log('Audio playback failed:', error));
-                    
+
                     lives--;
                     document.getElementById('lives').textContent = lives;
                     if (lives <= 0) {
@@ -520,7 +665,7 @@
                     if (detectCollision(bullet, asteroid)) {
                         // Create explosion at asteroid position
                         createExplosion(asteroid.x, asteroid.y, 'rgba(255, 255, 255, 0.8)', 20);
-                        
+
                         // Play explosion sound
                         sounds.explosion.currentTime = 0;
                         sounds.explosion.play().catch(error => console.log('Audio playback failed:', error));
@@ -560,15 +705,104 @@
 
             // Check if all asteroids are destroyed
             if (asteroids.length === 0) {
-                // Add new level of asteroids
-                const numAsteroids = Math.min(4 + Math.floor(score / 5000), 8);
-                for (let i = 0; i < numAsteroids; i++) {
-                    let x, y;
-                    do {
-                        x = Math.random() * canvas.width;
-                        y = Math.random() * canvas.height;
-                    } while (Math.sqrt((x - ship.x) ** 2 + (y - ship.y) ** 2) < 200);
-                    asteroids.push(new Asteroid(x, y, 40 + Math.random() * 20));
+                if (!inBossLevel) {
+                    // Start boss level
+                    bossData = bossLevel();
+
+                    // Create UFO objects
+                    ufos = bossData.ufos.map(ufoData =>
+                        new UFO(ufoData.x, ufoData.y, ufoData.size, ufoData.speed, ufoData.direction)
+                    );
+
+                    // Clear UFO bullets
+                    ufoBullets = [];
+                    inBossLevel = true;
+
+                } else {
+
+                    // Boss level already active - check if complete
+                    if (ufos.length === 0) {
+                        // Boss level complete - return to asteroid level with increased difficulty
+                        inBossLevel = false;
+                        bossData = null; // Reset the boss data
+
+                        const numAsteroids = Math.min(4 + Math.floor(score / 5000), 8);
+
+                        for (let i = 0; i < numAsteroids; i++) {
+                            // Create new asteroids away from player
+                            let x, y;
+                            do {
+                                x = Math.random() * canvas.width;
+                                y = Math.random() * canvas.height;
+                            } while (Math.sqrt((x - ship.x) ** 2 + (y - ship.y) ** 2) < 200);
+                            asteroids.push(new Asteroid(x, y, 40 + Math.random() * 20));
+                        }
+                    }
+                }
+            }
+
+            // Add boss level logic to game loop
+            if (inBossLevel && bossData) {
+                // Handle UFOs
+                for (let i = ufos.length - 1; i >= 0; i--) {
+                    const ufo = ufos[i];
+                    // Update UFO and check if it should shoot
+                    if (ufo.update(deltaTime)) {
+                        // Time to shoot - create bullet
+                        const bulletData = ufo.shoot(bossData.config.bulletSpeed);
+                        ufoBullets.push(new UFOBullet(
+                            bulletData.x,
+                            bulletData.y,
+                            bulletData.vx,
+                            bulletData.vy,
+                            bossData.config.bulletRadius,
+                            bossData.config.bulletColor
+                        ));
+                        ufo.shootTimer = bossData.config.shootInterval;
+                    }
+                    ufo.draw();
+
+                    // Check for collisions with player bullets
+                    for (let j = bullets.length - 1; j >= 0; j--) {
+                        if (detectCollision(bullets[j], ufo)) {
+                            createExplosion(ufo.x, ufo.y, 'rgba(100, 149, 237, 0.8)', 20);
+                            sounds.explosion.currentTime = 0;
+                            sounds.explosion.play().catch(error => console.log('Audio playback failed:', error));
+                            score += 300;
+                            document.getElementById('score').textContent = score;
+                            bullets.splice(j, 1);
+                            ufos.splice(i, 1);
+                            break;
+                        }
+                    }
+                }
+
+                // Handle UFO bullets
+                for (let i = ufoBullets.length - 1; i >= 0; i--) {
+                    const bullet = ufoBullets[i];
+                    bullet.update();
+                    bullet.draw();
+
+                    // Check for collision with player
+                    if (!ship.invulnerable && detectCollision(bullet, ship)) {
+                        createExplosion(ship.x, ship.y, 'rgba(255, 255, 255, 0.8)', 40);
+                        sounds.shipExplode.currentTime = 0;
+                        sounds.shipExplode.play().catch(error => console.log('Audio playback failed:', error));
+                        ufoBullets.splice(i, 1);
+                        lives--;
+                        document.getElementById('lives').textContent = lives;
+                        if (lives <= 0) {
+                            endGame();
+                            return;
+                        } else {
+                            ship.reset();
+                        }
+                    }
+
+                    // Remove dead bullets
+                    if (!bullet.alive) {
+                        ufoBullets.splice(i, 1);
+                    }
                 }
             }
 
@@ -606,6 +840,7 @@
 
         // Start the game
         init();
+
     </script>
 </body>
 </html>
