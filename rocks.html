@@ -63,8 +63,12 @@
             <p>Final Score: <span id="final-score">0</span></p>
             <button id="restart-btn">Play Again</button>
         </div>
+
         <audio id="shootSound" src="laser.mp3"></audio>
         <audio id="explosionSound" src="explosion.mp3"></audio>
+        <audio id="shipExplodeSound" src="shipexplode.mp3"></audio>
+        <audio id="thrusterSound" src="thrust.mp3" loop></audio>
+
     </div>
     <script>
         // Game variables
@@ -75,15 +79,19 @@
         let gameOver = false;
         let lastTime = 0;
 
-        // Sound management
+        // Sound management - with ship explosion sound
         const sounds = {
             shoot: document.getElementById('shootSound'),
-            explosion: document.getElementById('explosionSound')
+            explosion: document.getElementById('explosionSound'),
+            shipExplode: document.getElementById('shipExplodeSound'),
+            thruster: document.getElementById('thrusterSound')
         };
 
         // Preload sounds
         sounds.shoot.volume = 0.3; // Faint shooting sound
         sounds.explosion.volume = 0.5;
+        sounds.shipExplode.volume = 0.6; // Set appropriate volume for ship explosion
+        sounds.thruster.volume = 0.4; // Adjust as needed
 
         // Key states
         const keys = {
@@ -210,6 +218,7 @@
                 this.thrust.x = 0;
                 this.thrust.y = 0;
                 this.makeInvulnerable(3000);
+                sounds.thruster.pause(); // Stop thruster sound when ship resets
             }
         }
 
@@ -450,7 +459,17 @@
             } else {
                 ship.rotation = 0;
             }
+
             ship.thrusting = keys.ArrowUp;
+            
+            if (ship.thrusting) {
+                if (sounds.thruster.paused) {
+                    sounds.thruster.play().catch(error => console.log('Audio playback failed:', error));
+                }
+            } else {
+                sounds.thruster.pause();
+            }
+
             if (keys.Space) {
                 // Rate limit shooting
                 if (!ship.canShoot) {
@@ -459,6 +478,7 @@
                     setTimeout(() => { ship.canShoot = false; }, 300);
                 }
             }
+
             ship.update(deltaTime);
             ship.draw();
 
@@ -471,6 +491,11 @@
                 // Check for collision with ship
                 if (!ship.invulnerable && detectCollision(ship, asteroid)) {
                     createExplosion(ship.x, ship.y, 'rgba(255, 255, 255, 0.8)', 40);
+                    
+                    // Play ship explosion sound
+                    sounds.shipExplode.currentTime = 0;
+                    sounds.shipExplode.play().catch(error => console.log('Audio playback failed:', error));
+                    
                     lives--;
                     document.getElementById('lives').textContent = lives;
                     if (lives <= 0) {
@@ -554,6 +579,7 @@
         // End game
         function endGame() {
             gameOver = true;
+            sounds.thruster.pause(); // Make sure thruster sound stops
             document.getElementById('final-score').textContent = score;
             document.getElementById('game-over').style.display = 'block';
         }
