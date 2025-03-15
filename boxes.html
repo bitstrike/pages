@@ -94,7 +94,11 @@
     <div id="output" class="box"></div>
     <script>
         const messageInput = document.getElementById('message');
-        
+        // Constants for comment styles
+        const SHELL = 100;
+        const CLANG = 101;
+        const PYTHON = 102;
+
         // Handle paste events
         messageInput.addEventListener('paste', function(e) {
             e.preventDefault();
@@ -163,6 +167,35 @@
             lines.push(tempLine.trim());
             return lines;
         }
+
+
+        // Function to format text as a comment in the specified style
+        function formatComment(buf, style) {
+            // Input validation
+            if (typeof buf !== 'string') {
+                throw new Error('buf must be a string');
+            }
+            if (!Number.isInteger(style) || ![SHELL, CLANG, PYTHON].includes(style)) {
+                throw new Error('Invalid style constant');
+            }
+
+            // Remove any existing comment characters
+            buf = buf.replace(/^\/\/(.*)$/gm, '$1')
+                    .replace(/^#(.*)$/gm, '$1')
+                    .replace(/^\/\*([\s\S]*?)\*\/$/gm, '$1')
+                    .trim();
+
+            // Format based on style
+            switch (style) {
+                case SHELL:
+                    return `# ${buf}`;
+                case CLANG:
+                    return `// ${buf}`;
+                case PYTHON:
+                    return `# ${buf}`;
+            }
+        }
+
     </script>
 </body>
 </html>
