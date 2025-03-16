@@ -52,6 +52,31 @@
         #restart-btn:hover {
             background-color: #45a049;
         }
+        .dialog-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border: 2px solid #4CAF50;
+            border-radius: 10px;
+            text-align: center;
+        }
+        #start-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #start-btn:hover {
+            background-color: #45a049;
+        }
     </style>
 </head>
 <body>
@@ -68,8 +93,19 @@
         <audio id="explosionSound" src="explosion.mp3"></audio>
         <audio id="shipExplodeSound" src="shipexplode.mp3"></audio>
         <audio id="thrusterSound" src="thrust.mp3" loop></audio>
-
     </div>
+
+    <div id="start-dialog" class="dialog-box">
+        <h2>Select Difficulty</h2>
+        <select id="difficulty-select">
+            <option value="1">Mid</option>
+            <option value="2">Skibidi</option>
+            <option value="3">Cracked</option>
+            <option value="4">Goated</option>
+        </select>
+        <button id="start-btn">Yeet</button>
+    </div>
+
     <script>
         // Game variables
         const canvas = document.getElementById('gameCanvas');
@@ -78,6 +114,9 @@
         let score = 0, lives = 3;
         let gameOver = false;
         let lastTime = 0;
+
+        // Global variable for difficulty level
+        let DifficultyLevel = 1;
 
         // Sound management - with ship explosion sound
         const sounds = {
@@ -533,6 +572,17 @@
             }
         }
 
+        // Function to show the start dialog
+        function showStartDialog() {
+            document.getElementById('start-dialog').style.display = 'block';
+        }
+
+        // Function to hide the start dialog and start the game
+        function hideStartDialog() {
+            document.getElementById('start-dialog').style.display = 'none';
+            init();
+        }
+
         // Initialize game
         function init() {
             // Create ship at center of screen
@@ -573,6 +623,22 @@
             ufoBullets = [];
             bossData = null;
             bossLevelNumber = 1; // Reset the boss level number
+
+            // Adjust game parameters based on difficulty level
+            switch (DifficultyLevel) {
+                case 1:
+                    // Mid difficulty settings
+                    break;
+                case 2:
+                    // Skibidi difficulty settings
+                    break;
+                case 3:
+                    // Cracked difficulty settings
+                    break;
+                case 4:
+                    // Goated difficulty settings
+                    break;
+            }
 
             // Start game loop
             requestAnimationFrame(gameLoop);
@@ -753,7 +819,7 @@
                             bossData.config.bulletRadius,
                             bossData.config.bulletColor
                         ));
-                        ufo.shootTimer = Math.random() * 5000 + 500; // Randomize within the interval
+                        ufo.shootTimer = Math.random() * 5000 + 1500; // Randomize within the interval
                     }
                     ufo.draw();
 
@@ -849,8 +915,15 @@
 
         document.getElementById('restart-btn').addEventListener('click', init);
 
-        // Start the game
-        init();
+        // Event listener for the start button
+        document.getElementById('start-btn').addEventListener('click', () => {
+            const difficultySelect = document.getElementById('difficulty-select');
+            DifficultyLevel = parseInt(difficultySelect.value);
+            hideStartDialog();
+        });
+
+        // Show the start dialog when the page loads
+        window.addEventListener('load', showStartDialog);
 
     </script>
 </body>
