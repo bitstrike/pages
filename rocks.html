@@ -255,7 +255,7 @@
                 this.x += this.speed * this.direction;
 
                 // Check boundary and move down when reached edge
-                if (this.x < this.size/2 || this.x > canvas.width - this.size/2) {
+                if (this.x < this.size / 2 || this.x > canvas.width - this.size / 2) {
                     this.direction *= -1; // Reverse direction
                     this.y += this.size; // Move down
                 }
@@ -267,7 +267,7 @@
 
             shoot(bulletSpeed, targetX, targetY) {
                 // Reset timer (will be set to shoot interval in game code)
-                this.shootTimer = 1000; // Set to 1 second
+                this.shootTimer = Math.random() * 2000 + 500; // Randomize within the interval
 
                 // Calculate direction to player
                 const deltaX = targetX - this.x;
@@ -473,8 +473,6 @@
         }
 
         function bossLevel() {
-            // Determine current level (affects number of UFOs)
-            //const currentLevel = Math.floor(score / 5000) + 1;
             const currentLevel = bossLevelNumber; // Use the bossLevelNumber variable
 
             // Configuration settings for UFOs
@@ -483,7 +481,7 @@
                 size: 30, // Size in pixels
                 speed: 1.5 + (currentLevel * 0.2), // Speed increases with level
                 bulletSpeed: 3 + (currentLevel * 0.3), // Bullet speed increases with level
-                shootInterval: 3000, // Set to 1 second
+                shootInterval: 2000, // Set to 1 second
                 bulletRadius: 3,
                 bulletColor: 'red'
             };
@@ -491,7 +489,6 @@
             // Create UFO objects
             const ufos = [];
             for (let i = 0; i < ufoConfig.count; i++) {
-                // Distribute UFOs evenly across the top of the screen
                 const x = (canvas.width / (ufoConfig.count + 1)) * (i + 1);
                 const y = ufoConfig.size;
 
@@ -756,7 +753,7 @@
                             bossData.config.bulletRadius,
                             bossData.config.bulletColor
                         ));
-                        ufo.shootTimer = bossData.config.shootInterval;
+                        ufo.shootTimer = Math.random() * 5000 + 500; // Randomize within the interval
                     }
                     ufo.draw();
 
