@@ -88,7 +88,7 @@ button:hover {
 
 <!-- Audio elements -->
 <audio id="shootSound" src="laser.mp3" preload="auto"></audio>
-<audio id="explosionSound" src="explode.mp3" preload="auto"></audio>
+<audio id="explosionSound" src="explosion.mp3" preload="auto"></audio>
 <audio id="shipExplodeSound" src="shipexplode.mp3" preload="auto"></audio>
 <audio id="thrusterSound" src="thrust.mp3" preload="auto" loop></audio>
 
@@ -608,7 +608,7 @@ function detectCollision(obj1, obj2) {
 
 function playSound(sound) {
     sound.currentTime = 0;
-    sound.play().catch(error => console.log('Audio playback failed:', error));
+    sound.play().catch(error => console.log('Audio playback failed:', error, sound));
 }
 
 function createAsteroids(count, playerX, playerY, minDistance = 200) {
