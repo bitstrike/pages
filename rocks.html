@@ -128,8 +128,8 @@
 
         // Preload sounds
         sounds.shoot.volume = 0.3; // Faint shooting sound
-        sounds.explosion.volume = 0.5;
-        sounds.shipExplode.volume = 0.6; // Set appropriate volume for ship explosion
+        sounds.explosion.volume = 0.3;
+        sounds.shipExplode.volume = 0.3; // Set appropriate volume for ship explosion
         sounds.thruster.volume = 0.4; // Adjust as needed
 
         let inBossLevel = false;
@@ -913,7 +913,8 @@
             }
         });
 
-        document.getElementById('restart-btn').addEventListener('click', init);
+        // Event listener for the "Play Again" button
+        document.getElementById('restart-btn').addEventListener('click', showStartDialog);
 
         // Event listener for the start button
         document.getElementById('start-btn').addEventListener('click', () => {
