@@ -164,8 +164,7 @@ class PlayerShip extends GameObject {
     }
 
     toggleInvulnerability() {
-        if (!this.isToggleInvulnerable) return;
-        
+        //if (!this.isToggleInvulnerable) return;
         this.invulnerable = !this.invulnerable;
         if (this.invulnerable) {
             this.invulnerableTime = Infinity; // Set to infinity for toggle mode
@@ -1098,8 +1097,10 @@ window.addEventListener('keydown', (e) => {
         }
     }
     if (e.ctrlKey && e.altKey && e.code === 'KeyI') {
+        
         e.preventDefault();
         if (gameState.player) {
+            console.log ('Invulnerability toggled');
             gameState.player.toggleInvulnerability();
         }
         return;
