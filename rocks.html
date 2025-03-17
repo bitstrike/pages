@@ -5,15 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Space Rocks</title>
     <link rel="stylesheet" type="text/css" href="style.css">
-    
-    
     <!-- ... existing meta tags ... -->
-    <link rel="preload" href="shrek-ufo-1.png" as="image" type="image/png">
-    <link rel="preload" href="shrek-ufo-2.png" as="image" type="image/png">
-    <link rel="preload" href="shrek-ufo-3.png" as="image" type="image/png">
-    <link rel="preload" href="shrek-ufo-4.png" as="image" type="image/png">
-    
-
+    <link rel="preload" href="boss-ufo-1.png" as="image" type="image/png">
+    <link rel="preload" href="boss-ufo-2.png" as="image" type="image/png">
+    <link rel="preload" href="boss-ufo-3.png" as="image" type="image/png">
+    <link rel="preload" href="boss-ufo-4.png" as="image" type="image/png">
 </head>
 <body>
 <div id="game-container">
@@ -1138,7 +1134,7 @@ function loadBossImages() {
     
     difficulties.forEach(difficulty => {
         const img = new Image();
-        img.src = `shrek-ufo-${difficulty}.png`;
+        img.src = `boss-ufo-${difficulty}.png`;
         img.onload = () => {
             bossImages.images[difficulty] = img;
             loadedCount++;
