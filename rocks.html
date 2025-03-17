@@ -3,59 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Space Rocks Game</title>
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background-color: #000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            font-family: Arial, sans-serif;
-        }
-        canvas {
-            border: 2px solid #333;
-            background-color: #000;
-        }
-        #game-container {
-            position: relative;
-        }
-        #score-container {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            color: white;
-            font-size: 18px;
-        }
-        .dialog-box {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 20px;
-            border: 2px solid #4CAF50;
-            border-radius: 10px;
-            text-align: center;
-            display: none;
-        }
-        button {
-            margin-top: 20px;
-            padding: 10px 20px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-    </style>
+    <title>Space Rocks</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    
+    
+    <!-- ... existing meta tags ... -->
+    <link rel="preload" href="shrek-ufo-1.png" as="image" type="image/png">
+    <link rel="preload" href="shrek-ufo-2.png" as="image" type="image/png">
+    <link rel="preload" href="shrek-ufo-3.png" as="image" type="image/png">
+    <link rel="preload" href="shrek-ufo-4.png" as="image" type="image/png">
+    
+
 </head>
 <body>
 <div id="game-container">
@@ -134,7 +92,7 @@ const sounds = {
 
 // Set appropriate volumes
 sounds.shoot.volume = 0.3;
-sounds.explosion.volume = 0.3;
+sounds.explosion.volume = 0.2;
 sounds.shipExplode.volume = 0.3;
 sounds.thruster.volume = 0.4;
 sounds.randomShip.volume = 0.4;
@@ -170,20 +128,20 @@ class PlayerShip extends GameObject {
         this.canShoot = true;
         this.shootDelay = 300; // milliseconds
         this.bulletCount = 1; // Gain more bullets as player progresses
+        this.isToggleInvulnerable = false; // Track if invulnerability is toggled
+
     }
 
     draw() {
-        // Flashing effect when invulnerable
-        if (this.invulnerable && Math.floor(Date.now() / 100) % 2) {
-            return;
-        }
-
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.rotate(this.angle);
 
+        // Set color based on state
+        ctx.strokeStyle = this.invulnerable ? '#FF0000' : 'white';
+        ctx.fillStyle = this.invulnerable ? 'rgba(255, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.3)';
+        
         // Draw ship
-        ctx.strokeStyle = 'white';
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(this.radius, 0);
@@ -193,6 +151,7 @@ class PlayerShip extends GameObject {
         ctx.lineTo(this.radius, 0);
         ctx.closePath();
         ctx.stroke();
+        ctx.fill();
 
         // Draw thrust flame if thrusting
         if (this.thrusting) {
@@ -208,16 +167,25 @@ class PlayerShip extends GameObject {
         ctx.restore();
     }
 
+    toggleInvulnerability() {
+        if (!this.isToggleInvulnerable) return;
+        
+        this.invulnerable = !this.invulnerable;
+        if (this.invulnerable) {
+            this.invulnerableTime = Infinity; // Set to infinity for toggle mode
+        }
+    }
+
     update(deltaTime) {
         // Update invulnerability timer
-        if (this.invulnerable) {
+        if (this.invulnerable && this.invulnerableTime !== Infinity) {
             this.invulnerableTime -= deltaTime;
             if (this.invulnerableTime <= 0) {
                 this.invulnerable = false;
             }
         }
 
-        // Rotation
+        // Rest of the existing update code...
         this.angle += this.rotation;
 
         // Thrust
@@ -284,7 +252,8 @@ class PlayerShip extends GameObject {
 
         // Rate limiting
         this.canShoot = false;
-        setTimeout(() => { this.canShoot = true; }, this.shootDelay);
+        setTimeout(() => { this.canShoot = true; }, this.shootDelay);        
+
     }
 
     reset() {
@@ -294,8 +263,13 @@ class PlayerShip extends GameObject {
         this.thrust.x = 0;
         this.thrust.y = 0;
         this.rotation = 0;
-        this.makeInvulnerable(3000); // 3 seconds of invulnerability
+        this.invulnerable = false;
+        this.invulnerableTime = 0;
+        this.isToggleInvulnerable = true;
 
+        // ? this.makeInvulnerable(3000); // 3 seconds of invulnerability
+
+        
         // Stop thruster sound
         sounds.thruster.pause();
         sounds.thruster.currentTime = 0;
@@ -523,11 +497,39 @@ class BossShip extends UFOBase {
         // Adjust size and speed based on difficulty
         const size = 40 + (difficulty * 5);
         const speed = 1.5 + (difficulty * 0.3);
-
         super(x, y, size, speed, Math.random() > 0.5 ? 1 : -1, 'boss');
         this.health = difficulty * 2; // Health scales with difficulty
         this.difficulty = difficulty;
         this.shootInterval = Math.max(500, 2000 - (difficulty * 300)); // Faster shooting at higher difficulties
+        this.image = bossImages.images[difficulty];
+        this.frameWidth = this.image.width;
+        this.frameHeight = this.image.height;
+    }
+
+    draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        
+        // Draw the boss ship image
+        if (this.image) {
+            // Use integer coordinates for better performance
+            const x = Math.floor(-this.frameWidth / 2);
+            const y = Math.floor(-this.frameHeight / 2);
+            ctx.drawImage(this.image, x, y, this.frameWidth, this.frameHeight);
+        } else {
+            // Fallback to wireframe if image isn't loaded
+            ctx.strokeStyle = '#FF00FF';
+            ctx.fillStyle = 'rgba(255, 0, 255, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, this.radius, this.radius / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.ellipse(0, -this.radius / 4, this.radius / 2, this.radius / 3, 0, Math.PI, 0);
+            ctx.stroke();
+        }
+        ctx.restore();
     }
 }
 
@@ -603,6 +605,7 @@ function createExplosion(x, y, color, count = 15) {
 }
 
 function detectCollision(obj1, obj2) {
+    if (obj1.invulnerable || obj2.invulnerable) return false;
     const dx = obj1.x - obj2.x;
     const dy = obj1.y - obj2.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
@@ -1098,6 +1101,13 @@ window.addEventListener('keydown', (e) => {
             showPauseDialog();
         }
     }
+    if (e.ctrlKey && e.altKey && e.code === 'KeyI') {
+        e.preventDefault();
+        if (gameState.player) {
+            gameState.player.toggleInvulnerability();
+        }
+        return;
+    }
 });
 
 window.addEventListener('keyup', (e) => {
@@ -1113,8 +1123,38 @@ document.getElementById('restart-btn').addEventListener('click', showStartDialog
 document.getElementById('resume-btn').addEventListener('click', hidePauseDialog);
 document.getElementById('start-over-btn').addEventListener('click', showStartDialog);
 
+
+
+// Image cache for boss ships
+const bossImages = {
+    loaded: false,
+    images: {}
+};
+
+// Load boss ship images
+function loadBossImages() {
+    const difficulties = [1, 2, 3, 4];
+    let loadedCount = 0;
+    
+    difficulties.forEach(difficulty => {
+        const img = new Image();
+        img.src = `shrek-ufo-${difficulty}.png`;
+        img.onload = () => {
+            bossImages.images[difficulty] = img;
+            loadedCount++;
+            if (loadedCount === difficulties.length) {
+                bossImages.loaded = true;
+            }
+        };
+    });
+}
+
+
 // Show the start dialog when the page loads
 window.addEventListener('load', showStartDialog);
+
+// load boss images
+window.addEventListener('load', loadBossImages);
 </script>
 </body>
 </html>
