@@ -124,6 +124,7 @@ class PlayerShip extends GameObject {
         this.canShoot = true;
         this.shootDelay = 300; // milliseconds
         this.bulletCount = 1; // Gain more bullets as player progresses
+        this.maxBulletCount = 4; // max bullets to accumulate after each boss
         this.isToggleInvulnerable = false; // Track if invulnerability is toggled
 
     }
@@ -778,9 +779,9 @@ function gameLoop(timestamp) {
         gameState.bossLevelNumber++;
         gameState.isInBossLevel = false;
 
-        // Increment player's bullet count
-        gameState.player.bulletCount++;
-
+        // Increment player's bullet count if less than 4
+        gameState.player.bulletCount = Math.min(gameState.player.bulletCount + 1, 4);
+        
         // Create new asteroids for next level
         const settings = getDifficultySettings(gameState.difficultyLevel);
         const newAsteroidCount = Math.min(settings.asteroidCount + Math.floor(gameState.bossLevelNumber / 2), 12);
