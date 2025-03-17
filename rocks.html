@@ -1,79 +1,79 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Space Rocks Game</title>
-<style>
-body {
-    margin: 0;
-    overflow: hidden;
-    background-color: #000;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    font-family: Arial, sans-serif;
-}
-canvas {
-    border: 2px solid #333;
-    background-color: #000;
-}
-#game-container {
-    position: relative;
-}
-#score-container {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    color: white;
-    font-size: 18px;
-}
-.dialog-box {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 20px;
-    border: 2px solid #4CAF50;
-    border-radius: 10px;
-    text-align: center;
-    display: none;
-}
-button {
-    margin-top: 20px;
-    padding: 10px 20px;
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 16px;
-}
-button:hover {
-    background-color: #45a049;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Rocks Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 2px solid #333;
+            background-color: #000;
+        }
+        #game-container {
+            position: relative;
+        }
+        #score-container {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 18px;
+        }
+        .dialog-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border: 2px solid #4CAF50;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
 </head>
 <body>
 <div id="game-container">
     <canvas id="gameCanvas" width="800" height="600"></canvas>
     <div id="score-container">Lives: <span id="lives">3</span> | Score: <span id="score">0</span> | Difficulty: <span id="difficulty-text">Mid</span></div>
-    
+
     <div id="game-over" class="dialog-box">
         <h2>GAME OVER</h2>
         <p>Final Score: <span id="final-score">0</span></p>
         <button id="restart-btn">Play Again</button>
     </div>
-    
+
     <div id="pause-dialog" class="dialog-box">
         <h2>Game Paused</h2>
         <button id="resume-btn">Continue</button>
         <button id="start-over-btn">Start Over</button>
     </div>
-    
+
     <div id="start-dialog" class="dialog-box">
         <h2>Select Difficulty</h2>
         <select id="difficulty-select">
@@ -91,6 +91,7 @@ button:hover {
 <audio id="explosionSound" src="explosion.mp3" preload="auto"></audio>
 <audio id="shipExplodeSound" src="shipexplode.mp3" preload="auto"></audio>
 <audio id="thrusterSound" src="thrust.mp3" preload="auto" loop></audio>
+<audio id="randomShipSound" src="randomship.mp3" preload="auto" loop></audio>
 
 <script>
 // Game constants and variables
@@ -127,7 +128,8 @@ const sounds = {
     shoot: document.getElementById('shootSound'),
     explosion: document.getElementById('explosionSound'),
     shipExplode: document.getElementById('shipExplodeSound'),
-    thruster: document.getElementById('thrusterSound')
+    thruster: document.getElementById('thrusterSound'),
+    randomShip: document.getElementById('randomShipSound')
 };
 
 // Set appropriate volumes
@@ -135,6 +137,7 @@ sounds.shoot.volume = 0.3;
 sounds.explosion.volume = 0.3;
 sounds.shipExplode.volume = 0.3;
 sounds.thruster.volume = 0.4;
+sounds.randomShip.volume = 0.4;
 
 // Base class for game objects
 class GameObject {
@@ -148,7 +151,7 @@ class GameObject {
         // Screen wrapping
         if (this.x < -this.radius) this.x = GAME_WIDTH + this.radius;
         else if (this.x > GAME_WIDTH + this.radius) this.x = -this.radius;
-        
+
         if (this.y < -this.radius) this.y = GAME_HEIGHT + this.radius;
         else if (this.y > GAME_HEIGHT + this.radius) this.y = -this.radius;
     }
@@ -178,7 +181,7 @@ class PlayerShip extends GameObject {
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.rotate(this.angle);
-        
+
         // Draw ship
         ctx.strokeStyle = 'white';
         ctx.lineWidth = 2;
@@ -190,7 +193,7 @@ class PlayerShip extends GameObject {
         ctx.lineTo(this.radius, 0);
         ctx.closePath();
         ctx.stroke();
-        
+
         // Draw thrust flame if thrusting
         if (this.thrusting) {
             ctx.beginPath();
@@ -201,7 +204,7 @@ class PlayerShip extends GameObject {
             ctx.strokeStyle = '#FFA500';
             ctx.stroke();
         }
-        
+
         ctx.restore();
     }
 
@@ -213,15 +216,15 @@ class PlayerShip extends GameObject {
                 this.invulnerable = false;
             }
         }
-        
+
         // Rotation
         this.angle += this.rotation;
-        
+
         // Thrust
         if (this.thrusting) {
             this.thrust.x += Math.cos(this.angle) * 0.1;
             this.thrust.y += Math.sin(this.angle) * 0.1;
-            
+
             // Create thrust particles
             createParticle(
                 this.x - Math.cos(this.angle) * this.radius,
@@ -236,7 +239,7 @@ class PlayerShip extends GameObject {
             this.thrust.x *= 0.98;
             this.thrust.y *= 0.98;
         }
-        
+
         // Speed limit
         const maxSpeed = 6;
         const speed = Math.sqrt(this.thrust.x * this.thrust.x + this.thrust.y * this.thrust.y);
@@ -244,11 +247,11 @@ class PlayerShip extends GameObject {
             this.thrust.x *= maxSpeed / speed;
             this.thrust.y *= maxSpeed / speed;
         }
-        
+
         // Movement
         this.x += this.thrust.x;
         this.y += this.thrust.y;
-        
+
         // Screen wrapping
         this.checkBoundaries();
     }
@@ -260,11 +263,11 @@ class PlayerShip extends GameObject {
 
     shoot() {
         if (!this.canShoot) return;
-        
+
         // Spread bullets based on bullet count
         const angleSpread = Math.min(0.3, (this.bulletCount - 1) * 0.1);
         const baseAngle = this.angle - (angleSpread / 2) * (this.bulletCount - 1);
-        
+
         for (let i = 0; i < this.bulletCount; i++) {
             const bulletAngle = baseAngle + angleSpread * i;
             const bullet = new Bullet(
@@ -275,10 +278,10 @@ class PlayerShip extends GameObject {
             );
             gameState.bullets.push(bullet);
         }
-        
+
         // Play shoot sound
         playSound(sounds.shoot);
-        
+
         // Rate limiting
         this.canShoot = false;
         setTimeout(() => { this.canShoot = true; }, this.shootDelay);
@@ -292,7 +295,7 @@ class PlayerShip extends GameObject {
         this.thrust.y = 0;
         this.rotation = 0;
         this.makeInvulnerable(3000); // 3 seconds of invulnerability
-        
+
         // Stop thruster sound
         sounds.thruster.pause();
         sounds.thruster.currentTime = 0;
@@ -308,7 +311,7 @@ class SpaceRock extends GameObject {
         this.angle = Math.random() * Math.PI * 2;
         this.vx = Math.cos(this.angle) * this.speed;
         this.vy = Math.sin(this.angle) * this.speed;
-        
+
         // Create a random shape for the asteroid
         this.vertices = [];
         const vertexCount = Math.floor(Math.random() * 6) + 7;
@@ -328,19 +331,19 @@ class SpaceRock extends GameObject {
         ctx.strokeStyle = 'white';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        
+
         for (let i = 0; i < this.vertices.length; i++) {
             const vertex = this.vertices[i];
             const x = Math.cos(vertex.angle) * vertex.radius;
             const y = Math.sin(vertex.angle) * vertex.radius;
-            
+
             if (i === 0) {
                 ctx.moveTo(x, y);
             } else {
                 ctx.lineTo(x, y);
             }
         }
-        
+
         ctx.closePath();
         ctx.stroke();
         ctx.restore();
@@ -356,7 +359,7 @@ class SpaceRock extends GameObject {
         if (this.radius < 20) {
             return []; // Too small to break apart
         }
-        
+
         const newAsteroids = [];
         for (let i = 0; i < 2; i++) {
             const newAsteroid = new SpaceRock(
@@ -367,7 +370,7 @@ class SpaceRock extends GameObject {
             );
             newAsteroids.push(newAsteroid);
         }
-        
+
         return newAsteroids;
     }
 }
@@ -395,7 +398,7 @@ class Bullet extends GameObject {
         this.x += this.vx;
         this.y += this.vy;
         this.checkBoundaries();
-        
+
         // Reduce lifetime
         this.lifeTime -= deltaTime;
         if (this.lifeTime <= 0) {
@@ -426,7 +429,7 @@ class UFOBullet extends GameObject {
     update() {
         this.x += this.vx;
         this.y += this.vy;
-        
+
         // Check if bullet is out of bounds
         if (this.x < -this.radius || this.x > GAME_WIDTH + this.radius ||
             this.y < -this.radius || this.y > GAME_HEIGHT + this.radius) {
@@ -450,41 +453,41 @@ class UFOBase extends GameObject {
         // In a full implementation, this would load the proper image based on type and difficulty
         ctx.save();
         ctx.translate(this.x, this.y);
-        
+
         // Simple UFO shape for demonstration
         ctx.strokeStyle = this.type === 'boss' ? '#FF00FF' : '#00FFFF';
         ctx.fillStyle = this.type === 'boss' ? 'rgba(255, 0, 255, 0.3)' : 'rgba(0, 255, 255, 0.3)';
         ctx.lineWidth = 2;
-        
+
         // Draw UFO body
         ctx.beginPath();
         ctx.ellipse(0, 0, this.radius, this.radius / 2, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-        
+
         // Draw UFO dome
         ctx.beginPath();
         ctx.ellipse(0, -this.radius / 4, this.radius / 2, this.radius / 3, 0, Math.PI, 0);
         ctx.stroke();
-        
+
         ctx.restore();
     }
 
     update(deltaTime) {
         // Move horizontally
         this.x += this.speed * this.direction;
-        
+
         // If hit edge, reverse direction and move down
         if (this.x < this.radius || this.x > GAME_WIDTH - this.radius) {
             this.direction *= -1;
             this.y += this.size * 0.5;
-            
+
             // Ensure UFO doesn't go below screen
             if (this.y > GAME_HEIGHT - this.radius) {
                 this.y = GAME_HEIGHT - this.radius;
             }
         }
-        
+
         // Update shoot timer
         this.shootTimer -= deltaTime;
         return this.shootTimer <= 0;
@@ -493,22 +496,22 @@ class UFOBase extends GameObject {
     shoot(bulletSpeed, targetX, targetY) {
         // Reset shoot timer (random interval)
         this.shootTimer = Math.random() * 2000 + 1000;
-        
+
         // Calculate direction to target
         const deltaX = targetX - this.x;
         const deltaY = targetY - this.y;
         const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-        
+
         // Bullet velocity
         let vx = (deltaX / distance) * bulletSpeed;
         let vy = (deltaY / distance) * bulletSpeed;
-        
+
         // Add some randomness to aim for non-boss UFOs
         if (this.type === 'random') {
             vx += (Math.random() - 0.5) * 2;
             vy += (Math.random() - 0.5) * 2;
         }
-        
+
         // Create and return the bullet
         return new UFOBullet(this.x, this.y, vx, vy);
     }
@@ -520,7 +523,7 @@ class BossShip extends UFOBase {
         // Adjust size and speed based on difficulty
         const size = 40 + (difficulty * 5);
         const speed = 1.5 + (difficulty * 0.3);
-        
+
         super(x, y, size, speed, Math.random() > 0.5 ? 1 : -1, 'boss');
         this.health = difficulty * 2; // Health scales with difficulty
         this.difficulty = difficulty;
@@ -533,7 +536,7 @@ class RandomShip extends UFOBase {
     constructor(x, y) {
         const size = 30;
         const speed = 2.5;
-        
+
         super(x, y, size, speed, Math.random() > 0.5 ? 1 : -1, 'random');
     }
 }
@@ -567,12 +570,12 @@ class Particle {
     update(deltaTime) {
         this.x += this.vx;
         this.y += this.vy;
-        
+
         // Fade out and shrink
         this.lifeTime -= deltaTime;
         const lifePercentage = Math.max(0, this.lifeTime / this.initialLifeTime);
         this.radius = this.initialRadius * lifePercentage;
-        
+
         if (this.lifeTime <= 0) {
             this.alive = false;
         }
@@ -589,8 +592,8 @@ function createParticle(x, y, radius, angle, color, lifeTime) {
 function createExplosion(x, y, color, count = 15) {
     for (let i = 0; i < count; i++) {
         createParticle(
-            x, 
-            y, 
+            x,
+            y,
             Math.random() * 3 + 1,
             Math.random() * Math.PI * 2,
             color,
@@ -611,6 +614,7 @@ function playSound(sound) {
     sound.play().catch(error => console.log('Audio playback failed:', error, sound));
 }
 
+
 function createAsteroids(count, playerX, playerY, minDistance = 200) {
     const asteroids = [];
     for (let i = 0; i < count; i++) {
@@ -620,7 +624,7 @@ function createAsteroids(count, playerX, playerY, minDistance = 200) {
             x = Math.random() * GAME_WIDTH;
             y = Math.random() * GAME_HEIGHT;
         } while (Math.sqrt((x - playerX) ** 2 + (y - playerY) ** 2) < minDistance);
-        
+
         asteroids.push(new SpaceRock(x, y, 40 + Math.random() * 20));
     }
     return asteroids;
@@ -653,25 +657,25 @@ function getDifficultySettings(level) {
             text: 'GOAT'
         }
     };
-    
+
     return settings[level];
 }
 
 function startBossLevel() {
     const difficulty = gameState.difficultyLevel;
     const settings = getDifficultySettings(difficulty);
-    
+
     // Create boss UFOs
     const bossCount = settings.bossCount * gameState.bossLevelNumber;
     const spacing = GAME_WIDTH / (bossCount + 1);
-    
+
     gameState.ufos = [];
     for (let i = 0; i < bossCount; i++) {
         const x = spacing * (i + 1);
         const y = 50;
         gameState.ufos.push(new BossShip(x, y, difficulty));
     }
-    
+
     // Clear UFO bullets and set boss level flag
     gameState.ufoBullets = [];
     gameState.isInBossLevel = true;
@@ -681,15 +685,15 @@ function startBossLevel() {
 function init() {
     const player = new PlayerShip(GAME_WIDTH / 2, GAME_HEIGHT / 2);
     player.makeInvulnerable(3000); // 3 seconds of invulnerability at start
-    
+
     // Get difficulty settings
     const difficulty = gameState.difficultyLevel;
     const settings = getDifficultySettings(difficulty);
     gameState.difficultyText = settings.text;
-    
+
     // Create initial asteroids
     const asteroids = createAsteroids(settings.asteroidCount, player.x, player.y);
-    
+
     // Reset game state
     gameState.player = player;
     gameState.asteroids = asteroids;
@@ -704,7 +708,7 @@ function init() {
     gameState.isInBossLevel = false;
     gameState.bossLevelNumber = 1;
     gameState.lastTime = 0;
-    
+
     // Reset keys
     gameState.keys = {
         ArrowUp: false,
@@ -712,7 +716,7 @@ function init() {
         ArrowRight: false,
         Space: false
     };
-    
+
     // Update UI
     updateUI();
 }
@@ -725,11 +729,11 @@ function updateUI() {
 
 function endGame() {
     gameState.isGameOver = true;
-    
+
     // Stop sounds
     sounds.thruster.pause();
     sounds.thruster.currentTime = 0;
-    
+
     // Update UI
     document.getElementById('final-score').textContent = gameState.score;
     document.getElementById('game-over').style.display = 'block';
@@ -738,36 +742,36 @@ function endGame() {
 // Game loops and main logic
 function gameLoop(timestamp) {
     if (gameState.isGameOver || gameState.isPaused) return;
-    
+
     // Calculate delta time
     if (!gameState.lastTime) gameState.lastTime = timestamp;
     const deltaTime = Math.min(timestamp - gameState.lastTime, 50); // Cap at 50ms
     gameState.lastTime = timestamp;
-    
+
     // Clear canvas
     ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    
+
     // Process input
     processPlayerInput(deltaTime);
-    
+
     // Update and draw player
     if (gameState.player) {
         gameState.player.update(deltaTime);
         gameState.player.draw();
     }
-    
+
     // Update and draw asteroids
     updateAsteroids(deltaTime);
-    
+
     // Update and draw bullets
     updateBullets(deltaTime);
-    
+
     // Update UFOs (boss or random ships)
     updateUFOs(deltaTime);
-    
+
     // Update particles
     updateParticles(deltaTime);
-    
+
     // Check if all asteroids are destroyed
     if (gameState.asteroids.length === 0 && !gameState.isInBossLevel) {
         startBossLevel();
@@ -775,16 +779,16 @@ function gameLoop(timestamp) {
         // Boss level complete - advance to next level
         gameState.bossLevelNumber++;
         gameState.isInBossLevel = false;
-        
+
         // Increment player's bullet count
         gameState.player.bulletCount++;
-        
+
         // Create new asteroids for next level
         const settings = getDifficultySettings(gameState.difficultyLevel);
         const newAsteroidCount = Math.min(settings.asteroidCount + Math.floor(gameState.bossLevelNumber / 2), 12);
         gameState.asteroids = createAsteroids(newAsteroidCount, gameState.player.x, gameState.player.y);
     }
-    
+
     // Continue the game loop
     requestAnimationFrame(gameLoop);
 }
@@ -792,7 +796,7 @@ function gameLoop(timestamp) {
 function processPlayerInput() {
     const player = gameState.player;
     const keys = gameState.keys;
-    
+
     // Rotation
     if (keys.ArrowLeft) {
         player.rotation = -0.05;
@@ -801,10 +805,10 @@ function processPlayerInput() {
     } else {
         player.rotation = 0;
     }
-    
+
     // Thrust
     player.thrusting = keys.ArrowUp;
-    
+
     // Handle thruster sound
     if (player.thrusting) {
         if (sounds.thruster.paused) {
@@ -813,9 +817,9 @@ function processPlayerInput() {
     } else {
         sounds.thruster.pause();
     }
-    
+
     // Shooting
-    if (keys.Space) {
+    if (keys.Space && player.canShoot) {
         player.shoot();
     }
 }
@@ -825,21 +829,21 @@ function updateAsteroids() {
         const asteroid = gameState.asteroids[i];
         asteroid.update();
         asteroid.draw();
-        
+
         // Check for collision with player
-        if (gameState.player && !gameState.player.invulnerable && 
+        if (gameState.player && !gameState.player.invulnerable &&
             detectCollision(gameState.player, asteroid)) {
-            
+
             // Create explosion
             createExplosion(gameState.player.x, gameState.player.y, 'rgba(255, 255, 255, 0.8)', 40);
-            
+
             // Play explosion sound
             playSound(sounds.shipExplode);
-            
+
             // Reduce lives
             gameState.lives--;
             updateUI();
-            
+
             if (gameState.lives <= 0) {
                 endGame();
                 return;
@@ -856,7 +860,7 @@ function updateBullets(deltaTime) {
         const bullet = gameState.bullets[i];
         bullet.update(deltaTime);
         bullet.draw();
-        
+
         // Check for collision with asteroids
         let hitAsteroid = false;
         for (let j = gameState.asteroids.length - 1; j >= 0 && !hitAsteroid; j--) {
@@ -864,25 +868,25 @@ function updateBullets(deltaTime) {
             if (detectCollision(bullet, asteroid)) {
                 // Create explosion
                 createExplosion(asteroid.x, asteroid.y, 'rgba(255, 255, 255, 0.8)', 20);
-                
+
                 // Play explosion sound
                 playSound(sounds.explosion);
-                
+
                 // Add score based on asteroid size
                 gameState.score += (4 - Math.floor(asteroid.radius / 10)) * 100;
                 updateUI();
-                
+
                 // Break asteroid into smaller pieces
                 const newAsteroids = asteroid.breakApart();
                 gameState.asteroids.splice(j, 1);
                 gameState.asteroids.push(...newAsteroids);
-                
+
                 // Remove the bullet
                 gameState.bullets.splice(i, 1);
                 hitAsteroid = true;
             }
         }
-        
+
         // Check for collision with UFOs if not already hit an asteroid
         if (!hitAsteroid) {
             for (let j = gameState.ufos.length - 1; j >= 0; j--) {
@@ -890,14 +894,14 @@ function updateBullets(deltaTime) {
                 if (detectCollision(bullet, ufo)) {
                     // Create explosion
                     createExplosion(ufo.x, ufo.y, ufo.type === 'boss' ? 'rgba(255, 0, 255, 0.8)' : 'rgba(0, 255, 255, 0.8)', 25);
-                    
+
                     // Play explosion sound
                     playSound(sounds.explosion);
-                    
+
                     // Add score
                     gameState.score += ufo.type === 'boss' ? 500 : 300;
                     updateUI();
-                    
+
                     // Remove UFO and bullet
                     gameState.ufos.splice(j, 1);
                     gameState.bullets.splice(i, 1);
@@ -906,36 +910,36 @@ function updateBullets(deltaTime) {
                 }
             }
         }
-        
+
         // Remove bullet if it's expired
         if (!hitAsteroid && !bullet.alive) {
             gameState.bullets.splice(i, 1);
         }
     }
-    
+
     // Update UFO bullets
     for (let i = gameState.ufoBullets.length - 1; i >= 0; i--) {
         const bullet = gameState.ufoBullets[i];
         bullet.update();
         bullet.draw();
-        
+
         // Check for collision with player
-        if (gameState.player && !gameState.player.invulnerable && 
+        if (gameState.player && !gameState.player.invulnerable &&
             detectCollision(bullet, gameState.player)) {
-                
+
             // Create explosion
             createExplosion(gameState.player.x, gameState.player.y, 'rgba(255, 255, 255, 0.8)', 40);
-            
+
             // Play explosion sound
             playSound(sounds.shipExplode);
-            
+
             // Remove the bullet
             gameState.ufoBullets.splice(i, 1);
-            
+
             // Reduce lives
             gameState.lives--;
             updateUI();
-            
+
             if (gameState.lives <= 0) {
                 endGame();
                 return;
@@ -943,7 +947,7 @@ function updateBullets(deltaTime) {
                 gameState.player.reset();
             }
         }
-        
+
         // Remove dead bullets
         if (!bullet.alive) {
             gameState.ufoBullets.splice(i, 1);
@@ -954,43 +958,43 @@ function updateBullets(deltaTime) {
 function updateUFOs(deltaTime) {
     for (let i = gameState.ufos.length - 1; i >= 0; i--) {
         const ufo = gameState.ufos[i];
-        
+
         // Update UFO and check if it should shoot
         if (ufo.update(deltaTime) && gameState.player) {
             // Time to shoot - create bullet aimed at player
             const bullet = ufo.shoot(5, gameState.player.x, gameState.player.y);
             gameState.ufoBullets.push(bullet);
-            
+
             // Play shoot sound (with lower volume for UFO shots)
             const tempVol = sounds.shoot.volume;
             sounds.shoot.volume = 0.2;
-            playSound(sounds.shoot);
+            // playSound(sounds.shoot);
             sounds.shoot.volume = tempVol;
         }
-        
+
         ufo.draw();
-        
+
         // Check for collision with player
-        if (gameState.player && !gameState.player.invulnerable && 
+        if (gameState.player && !gameState.player.invulnerable &&
             detectCollision(gameState.player, ufo)) {
-                
+
             // Create explosion for both player and UFO
             createExplosion(gameState.player.x, gameState.player.y, 'rgba(255, 255, 255, 0.8)', 40);
             createExplosion(ufo.x, ufo.y, ufo.type === 'boss' ? 'rgba(255, 0, 255, 0.8)' : 'rgba(0, 255, 255, 0.8)', 25);
-            
+
             // Play explosion sound
             playSound(sounds.shipExplode);
-            
+
             // Add score for destroying UFO
             gameState.score += ufo.type === 'boss' ? 500 : 300;
-            
+
             // Remove the UFO
             gameState.ufos.splice(i, 1);
-            
+
             // Reduce lives
             gameState.lives--;
             updateUI();
-            
+
             if (gameState.lives <= 0) {
                 endGame();
                 return;
@@ -998,7 +1002,7 @@ function updateUFOs(deltaTime) {
                 gameState.player.reset();
             }
         }
-        
+
         // Check for collision with asteroids
         for (let j = gameState.asteroids.length - 1; j >= 0; j--) {
             const asteroid = gameState.asteroids[j];
@@ -1006,23 +1010,23 @@ function updateUFOs(deltaTime) {
                 // Create explosions
                 createExplosion(ufo.x, ufo.y, ufo.type === 'boss' ? 'rgba(255, 0, 255, 0.8)' : 'rgba(0, 255, 255, 0.8)', 25);
                 createExplosion(asteroid.x, asteroid.y, 'rgba(255, 255, 255, 0.8)', 20);
-                
+
                 // Play explosion sound
                 playSound(sounds.explosion);
-                
+
                 // Remove UFO
                 gameState.ufos.splice(i, 1);
-                
+
                 // Break asteroid
                 const newAsteroids = asteroid.breakApart();
                 gameState.asteroids.splice(j, 1);
                 gameState.asteroids.push(...newAsteroids);
-                
+
                 break;
             }
         }
     }
-    
+
     // Occasionally spawn random UFOs during gameplay
     if (!gameState.isInBossLevel && Math.random() < 0.0005 * deltaTime) {
         const y = 50;
@@ -1036,7 +1040,7 @@ function updateParticles(deltaTime) {
         const particle = gameState.particles[i];
         particle.update(deltaTime);
         particle.draw();
-        
+
         if (!particle.alive) {
             gameState.particles.splice(i, 1);
         }
@@ -1074,14 +1078,14 @@ function hidePauseDialog() {
 // Event Listeners
 window.addEventListener('keydown', (e) => {
     if (gameState.isPaused && e.code !== 'Escape' && e.code !== 'Space') return;
-    
+
     if (e.code === 'ArrowUp') gameState.keys.ArrowUp = true;
     if (e.code === 'ArrowLeft') gameState.keys.ArrowLeft = true;
     if (e.code === 'ArrowRight') gameState.keys.ArrowRight = true;
     if (e.code === 'Space') {
         gameState.keys.Space = true;
         e.preventDefault(); // Prevent page scrolling
-        
+
         // Resume from pause if Space is pressed
         if (gameState.isPaused) {
             hidePauseDialog();
