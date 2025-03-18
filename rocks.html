@@ -28,6 +28,7 @@
         <button id="start-over-btn">Start Over</button>
     </div>
 
+
     <div id="start-dialog" class="dialog-box">
         <h2>Select Difficulty</h2>
         <select id="difficulty-select">
@@ -36,8 +37,15 @@
             <option value="3">Cracked</option>
             <option value="4">GOAT</option>
         </select>
+        <div id="speed-control">
+            <label for="speed-slider">Game Speed:</label>
+            <input type="range" id="speed-slider" min="0.5" max="2" step="0.1" value="1">
+            <span id="speed-value">1.0x</span>
+        </div>
         <button id="start-btn">Yeet</button>
     </div>
+
+    <div id="fps-counter" style="position: fixed; bottom: 10px; right: 10px; color: cyan; font-family: monospace;"></div>
 </div>
 
 <!-- Audio elements -->
@@ -58,6 +66,10 @@ const FIXED_TIME_STEP = 16.67; // ~60 FPS
 let accumulator = 0;
 
 let gameState = {
+    speedMultiplier: 1,
+    fpsCounter: 0,
+    frames: 0,
+    lastFpsUpdate: 0,
     score: 0,
     lives: 3,
     difficultyLevel: 1,
@@ -745,15 +757,28 @@ function endGame() {
 function gameLoop(timestamp) {
     if (gameState.isGameOver || gameState.isPaused) return;
     
+    // Update FPS counter
+    gameState.frames++;
+    const now = timestamp;
+    if (now - gameState.lastFpsUpdate >= 1000) {
+        gameState.fpsCounter = gameState.frames;
+        gameState.frames = 0;
+        gameState.lastFpsUpdate = now;
+        document.getElementById('fps-counter').textContent = `FPS: ${gameState.fpsCounter}`;
+    }
+    
     // Calculate delta time
     const deltaTime = Math.min(timestamp - gameState.lastTime, 50);
     accumulator += deltaTime;
     gameState.lastTime = timestamp;
 
+    // Calculate adjusted time step based on speed multiplier
+    const adjustedTimeStep = FIXED_TIME_STEP / Math.pow(gameState.speedMultiplier, 1.5);
+
     // Update game state in fixed steps
-    while (accumulator >= FIXED_TIME_STEP) {
-        updateGameLogic(FIXED_TIME_STEP);
-        accumulator -= FIXED_TIME_STEP;
+    while (accumulator >= adjustedTimeStep) {
+        updateGameLogic(adjustedTimeStep);
+        accumulator -= adjustedTimeStep;
     }
 
     // Render at the current frame rate
@@ -772,7 +797,7 @@ function updateGameLogic(fixedStep) {
         gameState.player.update(fixedStep);
     }
 
-    // Update game objects
+    // Update game objects with speed multiplier
     updateAsteroids(fixedStep);
     updateBullets(fixedStep);
     updateUFOs(fixedStep);
@@ -784,7 +809,8 @@ function updateGameLogic(fixedStep) {
     } else if (gameState.asteroids.length === 0 && gameState.isInBossLevel && gameState.ufos.length === 0) {
         gameState.bossLevelNumber++;
         gameState.isInBossLevel = false;
-        gameState.player.bulletCount++;
+        if (gameState.player.bulletCount < gameState.player.maxBulletCount)
+            gameState.player.bulletCount++ 
         const settings = getDifficultySettings(gameState.difficultyLevel);
         const newAsteroidCount = Math.min(settings.asteroidCount + Math.floor(gameState.bossLevelNumber / 2), 12);
         gameState.asteroids = createAsteroids(newAsteroidCount, gameState.player.x, gameState.player.y);
@@ -1135,7 +1161,10 @@ document.getElementById('restart-btn').addEventListener('click', showStartDialog
 document.getElementById('resume-btn').addEventListener('click', hidePauseDialog);
 document.getElementById('start-over-btn').addEventListener('click', showStartDialog);
 
-
+document.getElementById('speed-slider').addEventListener('input', (e) => {
+    gameState.speedMultiplier = parseFloat(e.target.value);
+    document.getElementById('speed-value').textContent = gameState.speedMultiplier.toFixed(1) + 'x';
+});
 
 // Image cache for boss ships
 const bossImages = {
