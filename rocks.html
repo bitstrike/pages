@@ -54,6 +54,9 @@ const ctx = canvas.getContext('2d');
 const GAME_WIDTH = canvas.width;
 const GAME_HEIGHT = canvas.height;
 
+const FIXED_TIME_STEP = 16.67; // ~60 FPS
+let accumulator = 0;
+
 let gameState = {
     score: 0,
     lives: 3,
@@ -738,58 +741,69 @@ function endGame() {
     document.getElementById('game-over').style.display = 'block';
 }
 
-// Game loops and main logic
+
 function gameLoop(timestamp) {
     if (gameState.isGameOver || gameState.isPaused) return;
-
+    
     // Calculate delta time
-    if (!gameState.lastTime) gameState.lastTime = timestamp;
-    const deltaTime = Math.min(timestamp - gameState.lastTime, 50); // Cap at 50ms
+    const deltaTime = Math.min(timestamp - gameState.lastTime, 50);
+    accumulator += deltaTime;
     gameState.lastTime = timestamp;
 
-    // Clear canvas
-    ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-
-    // Process input
-    processPlayerInput(deltaTime);
-
-    // Update and draw player
-    if (gameState.player) {
-        gameState.player.update(deltaTime);
-        gameState.player.draw();
+    // Update game state in fixed steps
+    while (accumulator >= FIXED_TIME_STEP) {
+        updateGameLogic(FIXED_TIME_STEP);
+        accumulator -= FIXED_TIME_STEP;
     }
 
-    // Update and draw asteroids
-    updateAsteroids(deltaTime);
+    // Render at the current frame rate
+    render();
 
-    // Update and draw bullets
-    updateBullets(deltaTime);
+    // Continue the game loop
+    requestAnimationFrame(gameLoop);
+}
 
-    // Update UFOs (boss or random ships)
-    updateUFOs(deltaTime);
+function updateGameLogic(fixedStep) {
+    // Process input
+    processPlayerInput(fixedStep);
 
-    // Update particles
-    updateParticles(deltaTime);
+    // Update player
+    if (gameState.player) {
+        gameState.player.update(fixedStep);
+    }
 
-    // Check if all asteroids are destroyed
+    // Update game objects
+    updateAsteroids(fixedStep);
+    updateBullets(fixedStep);
+    updateUFOs(fixedStep);
+    updateParticles(fixedStep);
+
+    // Check game state
     if (gameState.asteroids.length === 0 && !gameState.isInBossLevel) {
         startBossLevel();
     } else if (gameState.asteroids.length === 0 && gameState.isInBossLevel && gameState.ufos.length === 0) {
-        // Boss level complete - advance to next level
         gameState.bossLevelNumber++;
         gameState.isInBossLevel = false;
-
-        // Increment player's bullet count if less than 4
-        gameState.player.bulletCount = Math.min(gameState.player.bulletCount + 1, 4);
-        
-        // Create new asteroids for next level
+        gameState.player.bulletCount++;
         const settings = getDifficultySettings(gameState.difficultyLevel);
         const newAsteroidCount = Math.min(settings.asteroidCount + Math.floor(gameState.bossLevelNumber / 2), 12);
         gameState.asteroids = createAsteroids(newAsteroidCount, gameState.player.x, gameState.player.y);
     }
+}
 
-    // Continue the game loop
-    requestAnimationFrame(gameLoop);
+function render() {
+    // Clear canvas
+    ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+    // Draw game objects
+    if (gameState.player) {
+        gameState.player.draw();
+    }
+    gameState.asteroids.forEach(asteroid => asteroid.draw());
+    gameState.bullets.forEach(bullet => bullet.draw());
+    gameState.ufoBullets.forEach(bullet => bullet.draw());
+    gameState.ufos.forEach(ufo => ufo.draw());
+    gameState.particles.forEach(particle => particle.draw());
 }
 
 function processPlayerInput() {
