@@ -574,14 +574,15 @@ class RandomShip extends UFOBase {
     
     constructor(x, y) {
         // Randomly choose a starting side (left or right)
-        const startX = Math.random() < 0.5 ? -30 : GAME_WIDTH + 30;
+        //const startX = Math.random() < 0.5 ? -30 : GAME_WIDTH + 30;
+
 
         // debug Start the ship at the center of the screen
-        //const startX = GAME_WIDTH /2;
+        const startX = GAME_WIDTH /2;
         const startY = GAME_HEIGHT/2;
         // debug
 
-        //super(startX, startY, 30, 2.5, Math.random() > 0.5 ? 1 : -1, 'random');
+        super(startX, startY, 30, 2.5, Math.random() > 0.5 ? 1 : -1, 'random');
         //super(x, y, 30, 2.5, Math.random() > 0.5 ? 1 : -1, 'random');
         this.bounceOffEdges = false;
         this.soundPlaying = false;
