@@ -10,6 +10,8 @@
     <link rel="preload" href="boss-ufo-2.png" as="image" type="image/png">
     <link rel="preload" href="boss-ufo-3.png" as="image" type="image/png">
     <link rel="preload" href="boss-ufo-4.png" as="image" type="image/png">
+    <link rel="preload" href="randomship.png" as="image" type="image/png">
+    
 </head>
 <body>
 <div id="game-container">
@@ -53,7 +55,7 @@
 <audio id="explosionSound" src="explosion.mp3" preload="auto"></audio>
 <audio id="shipExplodeSound" src="shipexplode.mp3" preload="auto"></audio>
 <audio id="thrusterSound" src="thrust.mp3" preload="auto" loop></audio>
-<audio id="randomShipSound" src="randomship.mp3" preload="auto" loop></audio>
+<audio id="randomShipSound" src="randomship.mp3" preload="auto"></audio>
 
 <script>
 // Game constants and variables
@@ -62,8 +64,16 @@ const ctx = canvas.getContext('2d');
 const GAME_WIDTH = canvas.width;
 const GAME_HEIGHT = canvas.height;
 
+// how often to spawn a random ufo
+RANDOMSHIP_SPAWN_INTERVAL = 90000;
+
 const FIXED_TIME_STEP = 16.67; // ~60 FPS
 let accumulator = 0;
+
+const gameImages = {
+    loaded: false,
+    images: {}
+};
 
 let gameState = {
     speedMultiplier: 1,
@@ -283,7 +293,7 @@ class PlayerShip extends GameObject {
         
         // Stop thruster sound
         sounds.thruster.pause();
-        sounds.thruster.currentTime = 0;
+        sounds.thruster.currentTime = 0;        
     }
 }
 
@@ -432,6 +442,7 @@ class UFOBase extends GameObject {
         this.direction = direction; // 1 for right, -1 for left
         this.shootTimer = Math.random() * 1000 + 500;
         this.type = type; // 'boss' or 'random'
+        this.bounceOffEdges = true;
     }
 
     draw() {
@@ -462,11 +473,12 @@ class UFOBase extends GameObject {
         // Move horizontally
         this.x += this.speed * this.direction;
 
-        // If hit edge, reverse direction and move down
-        if (this.x < this.radius || this.x > GAME_WIDTH - this.radius) {
+        // Only bounce if bounceOffEdges is true
+        if (this.bounceOffEdges && 
+            (this.x < this.radius || this.x > GAME_WIDTH - this.radius)) {
             this.direction *= -1;
             this.y += this.size * 0.5;
-
+            
             // Ensure UFO doesn't go below screen
             if (this.y > GAME_HEIGHT - this.radius) {
                 this.y = GAME_HEIGHT - this.radius;
@@ -505,16 +517,25 @@ class UFOBase extends GameObject {
 // Boss UFO class extends the base UFO
 class BossShip extends UFOBase {
     constructor(x, y, difficulty) {
-        // Adjust size and speed based on difficulty
         const size = 40 + (difficulty * 5);
         const speed = 1.5 + (difficulty * 0.3);
         super(x, y, size, speed, Math.random() > 0.5 ? 1 : -1, 'boss');
-        this.health = difficulty * 2; // Health scales with difficulty
+        
+        // Check if image is loaded in gameImages
+        if (gameImages.images[`boss-ufo-${difficulty}`]) {
+            this.image = gameImages.images[`boss-ufo-${difficulty}`];
+            this.frameWidth = this.image.width;
+            this.frameHeight = this.image.height;
+        } else {
+            console.warn(`Boss ship image for difficulty ${difficulty} not loaded yet`);
+            // Set default dimensions for wireframe fallback
+            this.frameWidth = this.size * 2;
+            this.frameHeight = this.size * 2;
+        }
+        
+        this.health = difficulty * 2;
         this.difficulty = difficulty;
-        this.shootInterval = Math.max(500, 2000 - (difficulty * 300)); // Faster shooting at higher difficulties
-        this.image = bossImages.images[difficulty];
-        this.frameWidth = this.image.width;
-        this.frameHeight = this.image.height;
+        this.shootInterval = Math.max(500, 2000 - (difficulty * 300));
     }
 
     draw() {
@@ -532,10 +553,14 @@ class BossShip extends UFOBase {
             ctx.strokeStyle = '#FF00FF';
             ctx.fillStyle = 'rgba(255, 0, 255, 0.3)';
             ctx.lineWidth = 2;
+            
+            // Draw UFO body
             ctx.beginPath();
             ctx.ellipse(0, 0, this.radius, this.radius / 2, 0, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
+            
+            // Draw UFO dome
             ctx.beginPath();
             ctx.ellipse(0, -this.radius / 4, this.radius / 2, this.radius / 3, 0, Math.PI, 0);
             ctx.stroke();
@@ -546,11 +571,59 @@ class BossShip extends UFOBase {
 
 // Random UFO class extends the base UFO
 class RandomShip extends UFOBase {
+    
     constructor(x, y) {
-        const size = 30;
-        const speed = 2.5;
+        // Randomly choose a starting side (left or right)
+        const startX = Math.random() < 0.5 ? -30 : GAME_WIDTH + 30;
 
-        super(x, y, size, speed, Math.random() > 0.5 ? 1 : -1, 'random');
+        // debug Start the ship at the center of the screen
+        //const startX = GAME_WIDTH /2;
+        const startY = GAME_HEIGHT/2;
+        // debug
+
+        //super(startX, startY, 30, 2.5, Math.random() > 0.5 ? 1 : -1, 'random');
+        //super(x, y, 30, 2.5, Math.random() > 0.5 ? 1 : -1, 'random');
+        this.bounceOffEdges = false;
+        this.soundPlaying = false;
+        this.sound = document.getElementById('randomShipSound');
+        if (this.sound) {
+            this.sound.loop = false; // Explicitly disable looping
+        }
+    }
+
+    draw() {
+        console.log(`Drawing UFO at (${this.x}, ${this.y})`);
+        
+        if (!gameImages.images.randomship) {
+            console.warn('Random ship image not loaded!');
+        }
+        
+        // Draw bounding box for debugging
+        ctx.strokeStyle = 'red';
+        ctx.strokeRect(-this.size/2, -this.size/2, this.size, this.size);
+
+        if (gameImages.images.randomship) {
+            ctx.save();
+            ctx.translate(this.x, this.y);        
+
+            ctx.drawImage(gameImages.images.randomship,
+                         -this.size/2, -this.size/2,
+                         this.size, this.size);
+            ctx.restore();
+        } else {
+            console.warn('Random ship image not loaded! Using fallback wireframe.');
+            super.draw(); // Fallback to wireframe
+        }
+        
+        // Play sound effect when visible
+        if (!this.soundPlaying && 
+            this.x > -50 && this.x < GAME_WIDTH + 50) {
+            if (this.sound) {
+                this.sound.currentTime = 0;
+                this.sound.play().catch(console.error);
+                this.soundPlaying = true;
+            }
+        }
     }
 }
 
@@ -722,6 +795,8 @@ function init() {
     gameState.isInBossLevel = false;
     gameState.bossLevelNumber = 1;
     gameState.lastTime = 0;
+    gameState.lastUFOSpawnTime = Date.now(); // Set to current time
+    gameState.UFOSpawnInterval = RANDOMSHIP_SPAWN_INTERVAL;
 
     // Reset keys
     gameState.keys = {
@@ -995,45 +1070,48 @@ function updateBullets(deltaTime) {
 }
 
 function updateUFOs(deltaTime) {
+    // Remove UFOs that have moved off-screen
     for (let i = gameState.ufos.length - 1; i >= 0; i--) {
         const ufo = gameState.ufos[i];
+        // Remove UFO if it's completely off-screen
+        if ((ufo.x < -100 || ufo.x > GAME_WIDTH + 100)) {
+            gameState.ufos.splice(i, 1);
+        }
+    }
 
+    // Update existing UFOs
+    for (let i = gameState.ufos.length - 1; i >= 0; i--) {
+        const ufo = gameState.ufos[i];
+        
         // Update UFO and check if it should shoot
         if (ufo.update(deltaTime) && gameState.player) {
             // Time to shoot - create bullet aimed at player
             const bullet = ufo.shoot(5, gameState.player.x, gameState.player.y);
             gameState.ufoBullets.push(bullet);
-
             // Play shoot sound (with lower volume for UFO shots)
             const tempVol = sounds.shoot.volume;
             sounds.shoot.volume = 0.2;
             // playSound(sounds.shoot);
             sounds.shoot.volume = tempVol;
         }
-
+        
         ufo.draw();
-
+        
         // Check for collision with player
-        if (gameState.player && !gameState.player.invulnerable &&
+        if (gameState.player && !gameState.player.invulnerable && 
             detectCollision(gameState.player, ufo)) {
-
             // Create explosion for both player and UFO
             createExplosion(gameState.player.x, gameState.player.y, 'rgba(255, 255, 255, 0.8)', 40);
             createExplosion(ufo.x, ufo.y, ufo.type === 'boss' ? 'rgba(255, 0, 255, 0.8)' : 'rgba(0, 255, 255, 0.8)', 25);
-
             // Play explosion sound
             playSound(sounds.shipExplode);
-
             // Add score for destroying UFO
             gameState.score += ufo.type === 'boss' ? 500 : 300;
-
             // Remove the UFO
             gameState.ufos.splice(i, 1);
-
             // Reduce lives
             gameState.lives--;
             updateUI();
-
             if (gameState.lives <= 0) {
                 endGame();
                 return;
@@ -1041,7 +1119,7 @@ function updateUFOs(deltaTime) {
                 gameState.player.reset();
             }
         }
-
+        
         // Check for collision with asteroids
         for (let j = gameState.asteroids.length - 1; j >= 0; j--) {
             const asteroid = gameState.asteroids[j];
@@ -1049,28 +1127,30 @@ function updateUFOs(deltaTime) {
                 // Create explosions
                 createExplosion(ufo.x, ufo.y, ufo.type === 'boss' ? 'rgba(255, 0, 255, 0.8)' : 'rgba(0, 255, 255, 0.8)', 25);
                 createExplosion(asteroid.x, asteroid.y, 'rgba(255, 255, 255, 0.8)', 20);
-
                 // Play explosion sound
                 playSound(sounds.explosion);
-
                 // Remove UFO
                 gameState.ufos.splice(i, 1);
-
                 // Break asteroid
                 const newAsteroids = asteroid.breakApart();
                 gameState.asteroids.splice(j, 1);
                 gameState.asteroids.push(...newAsteroids);
-
                 break;
             }
         }
     }
 
     // Occasionally spawn random UFOs during gameplay
-    if (!gameState.isInBossLevel && Math.random() < 0.0005 * deltaTime) {
-        const y = 50;
-        const x = Math.random() < 0.5 ? -30 : GAME_WIDTH + 30; // Spawn on either side
-        gameState.ufos.push(new RandomShip(x, y));
+    if (!gameState.isInBossLevel) {
+        const spawnInterval = gameState.UFOSpawnInterval; // Spawn every x seconds
+        const now = Date.now();
+        
+        if (!gameState.lastUFOSpawnTime || now - gameState.lastUFOSpawnTime >= spawnInterval) {
+            const y = 50;
+            const x = Math.random() < 0.5 ? -30 : GAME_WIDTH + 30;
+            gameState.ufos.push(new RandomShip(x, y));
+            gameState.lastUFOSpawnTime = now;
+        }
     }
 }
 
@@ -1121,6 +1201,7 @@ window.addEventListener('keydown', (e) => {
     if (e.code === 'ArrowUp') gameState.keys.ArrowUp = true;
     if (e.code === 'ArrowLeft') gameState.keys.ArrowLeft = true;
     if (e.code === 'ArrowRight') gameState.keys.ArrowRight = true;
+    
     if (e.code === 'Space') {
         gameState.keys.Space = true;
         e.preventDefault(); // Prevent page scrolling
@@ -1146,6 +1227,25 @@ window.addEventListener('keydown', (e) => {
         }
         return;
     }
+    if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'u') {
+        e.preventDefault();
+        if (!gameState.isInBossLevel) {
+            const y = 50;
+            const x = Math.random() < 0.5 ? -30 : GAME_WIDTH + 30;
+            const ufo = new RandomShip(x, y);
+            gameState.ufos.push(ufo);
+
+            // Play sound effect
+            const randomShipSound = document.getElementById('randomShipSound');
+
+            if (randomShipSound) {
+                randomShipSound.currentTime = 0;
+                randomShipSound.play().catch(console.error);
+            }
+
+            console.log('Random UFO spawned at:', x, y);
+        }
+    }
 });
 
 window.addEventListener('keyup', (e) => {
@@ -1166,36 +1266,51 @@ document.getElementById('speed-slider').addEventListener('input', (e) => {
     document.getElementById('speed-value').textContent = gameState.speedMultiplier.toFixed(1) + 'x';
 });
 
-// Image cache for boss ships
-const bossImages = {
-    loaded: false,
-    images: {}
-};
 
-// Load boss ship images
-function loadBossImages() {
+
+// Load game images
+function loadGameImages() {
     const difficulties = [1, 2, 3, 4];
+
+    const imagesToLoad = [
+        ...difficulties.map(difficulty => ({
+            id: `boss-ufo-${difficulty}`,
+            src: `boss-ufo-${difficulty}.png`
+        })),
+        {
+            id: 'randomship',
+            src: 'randomship.png'
+        }
+    ];
+    
     let loadedCount = 0;
     
-    difficulties.forEach(difficulty => {
+    imagesToLoad.forEach(asset => {
         const img = new Image();
-        img.src = `boss-ufo-${difficulty}.png`;
-        img.onload = () => {
-            bossImages.images[difficulty] = img;
-            loadedCount++;
-            if (loadedCount === difficulties.length) {
-                bossImages.loaded = true;
-            }
+        img.src = asset.src;
+        img.onload = () => handleImageLoaded();
+        gameImages.images[asset.id] = img;
+        console.log(`Loaded image: ${asset.src}`);
+
+        img.onerror = () => {
+            console.error(`Failed to load image: ${asset.src}`);
         };
     });
-}
 
+
+    function handleImageLoaded() {
+        loadedCount++;
+        if (loadedCount === imagesToLoad.length) {
+            gameImages.loaded = true;
+        }
+    }
+}
 
 // Show the start dialog when the page loads
 window.addEventListener('load', showStartDialog);
 
 // load boss images
-window.addEventListener('load', loadBossImages);
+window.addEventListener('load', loadGameImages);
 </script>
 </body>
 </html>
