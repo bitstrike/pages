@@ -65,7 +65,7 @@ const GAME_WIDTH = canvas.width;
 const GAME_HEIGHT = canvas.height;
 
 // how often to spawn a random ufo
-RANDOMSHIP_SPAWN_INTERVAL = 90000;
+RANDOMSHIP_SPAWN_INTERVAL = 60000;
 
 const FIXED_TIME_STEP = 16.67; // ~60 FPS
 let accumulator = 0;
@@ -570,54 +570,65 @@ class BossShip extends UFOBase {
 }
 
 // Random UFO class extends the base UFO
-class RandomShip extends UFOBase {
-    
-    constructor(x, y) {
-        // Randomly choose a starting side (left or right)
-        //const startX = Math.random() < 0.5 ? -30 : GAME_WIDTH + 30;
+/**
+ * Represents a randomly spawning UFO that moves across the screen.
+ * Extends the base UFO class to include specific behavior for random UFOs.
+ */
+ class RandomShip extends UFOBase {
+    /**
+     * Creates an instance of RandomShip.
+     * @param {number} y - The y-coordinate where the RandomShip will spawn.
+     */
 
+    constructor(y) {   
+        const startX = Math.random() < 0.5 ? GAME_WIDTH : 0;
+        const direction = startX === 0 ? 1 : -1;
 
-        // debug Start the ship at the center of the screen
-        const startX = GAME_WIDTH /2;
-        const startY = GAME_HEIGHT/2;
-        // debug
-
-        super(startX, startY, 30, 2.5, Math.random() > 0.5 ? 1 : -1, 'random');
-        //super(x, y, 30, 2.5, Math.random() > 0.5 ? 1 : -1, 'random');
+        // Initialize parent class with y-position adjusted for top-left coordinate system
+        // Using 30 as the size of the ship
+        super(startX, 30, 30, 2.5, direction, 'random');
+        
+        console.log('RandomShip spawned at:', this.x, this.y);
         this.bounceOffEdges = false;
+
+        // Sound setup for the RandomShip
         this.soundPlaying = false;
         this.sound = document.getElementById('randomShipSound');
         if (this.sound) {
-            this.sound.loop = false; // Explicitly disable looping
+            this.sound.loop = false;
         }
     }
-
+    /**
+     * Draws the RandomShip on the canvas.
+     * Includes logic to play a sound effect when the ship is visible on the screen.
+     */
     draw() {
-        console.log(`Drawing UFO at (${this.x}, ${this.y})`);
-        
+
+        if (!this.x % 10)
+            console.log('Drwing UFO on screen height:%d width:%d  at x:%d, y:%d, direction:%d, speed:%d', screen.height, screen.width, this.x, this.y, this.direction, this.speed);
+
+        // Check if the RandomShip image is loaded
         if (!gameImages.images.randomship) {
             console.warn('Random ship image not loaded!');
         }
-        
-        // Draw bounding box for debugging
-        ctx.strokeStyle = 'red';
-        ctx.strokeRect(-this.size/2, -this.size/2, this.size, this.size);
 
+        // Draw the RandomShip image if available
         if (gameImages.images.randomship) {
             ctx.save();
-            ctx.translate(this.x, this.y);        
+            ctx.translate(this.x, this.y);
 
             ctx.drawImage(gameImages.images.randomship,
-                         -this.size/2, -this.size/2,
-                         this.size, this.size);
+                -this.size / 2, -this.size / 2,
+                this.size, this.size);
             ctx.restore();
         } else {
+            // Fallback to a wireframe drawing if the image is not loaded
             console.warn('Random ship image not loaded! Using fallback wireframe.');
-            super.draw(); // Fallback to wireframe
+            super.draw();
         }
-        
-        // Play sound effect when visible
-        if (!this.soundPlaying && 
+
+        // Play the sound effect when the RandomShip is visible on the screen
+        if (!this.soundPlaying &&
             this.x > -50 && this.x < GAME_WIDTH + 50) {
             if (this.sound) {
                 this.sound.currentTime = 0;
@@ -626,7 +637,28 @@ class RandomShip extends UFOBase {
             }
         }
     }
+
+    /**
+     * Updates the position and state of the RandomShip.
+     * Moves the ship horizontally across the canvas.
+     * @param {number} deltaTime - The time elapsed since the last update.
+     * @returns {boolean} - Returns true if the ship is ready to shoot, false otherwise.
+     */
+    update(deltaTime) {
+        
+        //onsole.log('UFO position:', this.x, 'direction:', this.direction);
+
+        // Move the ship horizontally based on its speed and direction
+        this.x += this.speed * this.direction;
+
+        // Update the shoot timer
+        this.shootTimer -= deltaTime;
+
+        // Return true if the ship is ready to shoot
+        return this.shootTimer <= 0;
+    }
 }
+
 
 // Particle class for visual effects
 class Particle {
@@ -1143,7 +1175,7 @@ function updateUFOs(deltaTime) {
 
     // Occasionally spawn random UFOs during gameplay
     if (!gameState.isInBossLevel) {
-        const spawnInterval = gameState.UFOSpawnInterval; // Spawn every x seconds
+        const spawnInterval = gameState.UFOSpawnInterval;
         const now = Date.now();
         
         if (!gameState.lastUFOSpawnTime || now - gameState.lastUFOSpawnTime >= spawnInterval) {
@@ -1151,6 +1183,18 @@ function updateUFOs(deltaTime) {
             const x = Math.random() < 0.5 ? -30 : GAME_WIDTH + 30;
             gameState.ufos.push(new RandomShip(x, y));
             gameState.lastUFOSpawnTime = now;
+            
+            // Generate next random spawn time within the interval
+            gameState.nextUFOSpawnTime = now + Math.random() * spawnInterval;
+        }
+        
+        // Check if it's time for the next spawn
+        if (now >= gameState.nextUFOSpawnTime) {
+            const y = 50;
+            const x = Math.random() < 0.5 ? -30 : GAME_WIDTH + 30;
+            gameState.ufos.push(new RandomShip(x, y));
+            gameState.lastUFOSpawnTime = now;
+            gameState.nextUFOSpawnTime = now + Math.random() * spawnInterval;
         }
     }
 }
@@ -1243,8 +1287,6 @@ window.addEventListener('keydown', (e) => {
                 randomShipSound.currentTime = 0;
                 randomShipSound.play().catch(console.error);
             }
-
-            console.log('Random UFO spawned at:', x, y);
         }
     }
 });
