@@ -288,7 +288,7 @@ class PlayerShip extends GameObject {
         this.invulnerableTime = 0;
         this.isToggleInvulnerable = true;
 
-        // ? this.makeInvulnerable(3000); // 3 seconds of invulnerability
+        this.makeInvulnerable(3000); // 3 seconds of invulnerability
 
         
         // Stop thruster sound
@@ -828,8 +828,12 @@ function init() {
     gameState.isInBossLevel = false;
     gameState.bossLevelNumber = 1;
     gameState.lastTime = 0;
-    gameState.lastUFOSpawnTime = Date.now(); // Set to current time
+    //gameState.lastUFOSpawnTime = Date.now(); // Set to current time
     gameState.UFOSpawnInterval = RANDOMSHIP_SPAWN_INTERVAL;
+    
+    // Reset UFO spawn timing
+    gameState.lastUFOSpawnTime = Date.now();
+    gameState.nextUFOSpawnTime = Date.now() + Math.random() * gameState.UFOSpawnInterval;
 
     // Reset keys
     gameState.keys = {
@@ -838,6 +842,8 @@ function init() {
         ArrowRight: false,
         Space: false
     };
+    
+    console.log('Initial lives:', gameState.lives);
 
     // Update UI
     updateUI();
@@ -990,6 +996,7 @@ function updateAsteroids() {
             // Reduce lives
             gameState.lives--;
             updateUI();
+            console.log('Lives after:', gameState.lives);
 
             if (gameState.lives <= 0) {
                 endGame();
