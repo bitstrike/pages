@@ -1,0 +1,768 @@
+<!-- 
+# javascript clock
+step-by-step, consider the specification below to design a cyberpunk html themed javascript clock that consists of 3 circles. The centers of all circles align at the same x,y location. The minute and second circles rotate around the same origin as the hour circle location. The generated code should all be contained within one html file.
+* The innermost circle does shows the current hour in 2 digit format in the center. The hours are displayed as bold numerals. 
+* The next circle is centered at the same location as the hour circle, but is large enough in diameter to contain numbers around it's outside edge from 00-55. This circle has 60 equidistant tick marks on it's edge with the numbers placed every 5 ticks. 'This circle is like a "minute doughnut". which sweeps through a full revolution every hour. The minute doughnut sweeps one full mark every 60 seconds
+* The third circle is the "second doughnut". This doughnut is also centered at the hour location and is larger in diameter than the minute doughnut. The second doughnut is numbered also 00-55 with 60 tickmarks around it's edge. The second doughnut rotates on mark every second but in a sweeping fashion so as to be constantly moving. 
+ * The minute and second circles synchronize at the 3 o'clock position to show the current minute and second
+
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chr0n0 M0m3t3r</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            /* Reset all default margins and padding */
+        }
+        
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: radial-gradient(circle at center, #0c0d1d, #070813, #03030a);
+            font-family: 'Orbitron', sans-serif;
+            overflow: hidden;
+            position: relative;
+            color: #00f9e6;
+            /* Dark gradient background for space feel */
+        }
+        
+        /* Grid overlay for cyberpunk aesthetic */
+        .grid-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 249, 230, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 249, 230, 0.04) 1px, transparent 1px);
+            background-size: 60px 60px;
+            z-index: 1;
+            /* Creates a subtle grid effect overlaying everything */
+        }
+        
+        /* Matrix effect container */
+        .matrix-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0.3;
+            z-index: 2;
+            /* Matrix effect will be positioned absolutely within this */
+        }
+        
+        /* Matrix effect columns */
+        .matrix-track {
+            position: absolute;
+            top: -100%;
+            left: 0;
+            font-family: 'Share Tech Mono', monospace;
+            color: rgba(0, 249, 230, 0.3);
+            font-size: 16px;
+            writing-mode: vertical-rl;
+            height: 150%;
+            text-shadow: 0 0 10px rgba(0, 249, 230, 0.4);
+            /* Creates vertical text columns for falling code animation */
+        }
+        
+        /* Title styling for the clock app */
+        .title {
+            position: absolute;
+            top: 40px;
+            text-align: center;
+            color: #ff00d4;
+            font-size: 3rem;
+            letter-spacing: 6px;
+            text-shadow: 0 0 20px #ff00d4, 0 0 40px #ff00d4;
+            font-weight: 700;
+            text-transform: uppercase;
+            z-index: 10;
+            /* Glowing, futuristic title */
+        }
+        
+        /* Main clock container */
+        .clock-container {
+            position: relative;
+            width: 480px;
+            height: 480px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 5;
+            /* Acts as container for the concentric circles */
+        }
+        
+        /* Base styles for circle components */
+        .circle {
+            position: absolute;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* Common styles for all circular elements */
+        }
+        
+        /* Innermost circle (hours) */
+        .hour-circle {
+            width: 130px;
+            height: 130px;
+            background: rgba(0, 20, 27, 0.8);
+            border: 3px solid #00f9e6;
+            box-shadow: 0 0 20px #00f9e6, inset 0 0 10px #00f9e6;
+            z-index: 15;
+            animation: hourPulse 4s infinite ease-in-out;
+            /* Main hour display with pulsing glow animation */
+        }
+        
+        /* Hour number display */
+        .hour-display {
+            font-size: 48px;
+            font-weight: 900;
+            color: #00f9e6;
+            text-shadow: 0 0 20px #00f9e6;
+            letter-spacing: -2px;
+            /* Bold, glowing hour display */
+        }
+        
+        /* Base for ring-shaped elements */
+        .donut {
+            background: none;
+            border-width: 2px;
+            border-style: solid;
+            transition: transform 0.1s linear;
+            /* Styled like doughnuts with hollow centers */
+        }
+        
+        /* Minute ring styles */
+        .minute-donut {
+            width: 340px;
+            height: 340px;
+            border-color: #4294ff;
+            box-shadow: 0 0 25px rgba(66, 148, 255, 0.9), 
+                        inset 0 0 10px rgba(66, 148, 255, 0.7);
+            z-index: 14;
+            /* Blue glowing ring for minutes */
+        }
+        
+        /* Second ring styles */
+        .second-donut {
+            width: 410px;
+            height: 410px;
+            border-color: #ff00d4;
+            box-shadow: 0 0 25px rgba(255, 0, 212, 0.7), 
+                        inset 0 0 10px rgba(255, 0, 212, 0.5);
+            z-index: 13;
+            /* Magenta glowing ring for seconds */
+        }
+        
+        /* Container for tick marks */
+        .ticks {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            /* Holds all the minute/second markings */
+        }
+        
+        /* Base styles for tick marks */
+        .tick {
+            position: absolute;
+            left: 50%;
+            transform-origin: bottom center;
+            /* Common styles for both minute and second ticks */
+        }
+        
+        /* Minute tick styling */
+        .minute-tick {
+            width: 4px;
+            height: 16px;
+            background: #4294ff;
+            transform: translateX(-50%);
+            /* Individual minute markers */
+        }
+        
+        /* Minor minute tick - smaller version */
+        .minute-tick.minor {
+            height: 10px;
+            background: rgba(66, 148, 255, 0.6);
+        }
+        
+        /* Second tick styling */
+        .second-tick {
+            width: 2px;
+            height: 14px;
+            background: rgba(255, 0, 212, 0.7);
+            transform: translateX(-50%);
+        }
+        
+        /* Style for number displays on rings */
+        .number {
+            position: absolute;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 0 0 8px currentColor;
+            transform-origin: center center;
+            /* Labels for 5-minute/second intervals */
+        }
+        
+        /* Specific styling for minute numbers */
+        .minute-num {
+            color: #7dbdff;
+            font-size: 18px;
+        }
+        
+        /* Specific styling for second numbers */
+        .second-num {
+            color: #ff41d4;
+            font-size: 14px;
+        }
+        
+        /* Container to position ticks/nums correctly */
+        .tick-container {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            /* Rotated elements for circular layout */
+        }
+        
+        /* Hour circle pulsating animation */
+        @keyframes hourPulse {
+            0% { 
+                box-shadow: 0 0 15px #00f9e6, inset 0 0 10px #00f9e6;
+            }
+            50% { 
+                box-shadow: 0 0 30px #00f9e6, 0 0 40px rgba(0, 249, 230, 0.5), inset 0 0 15px #00f9e6; 
+            }
+            100% { 
+                box-shadow: 0 0 15px #00f9e6, inset 0 0 10px #00f9e6;
+            }
+            /* Creates pulsating glow effect for hour circle */
+        }
+        
+        /* Digital clock display at bottom */
+        .digital {
+            position: absolute;
+            bottom: 60px;
+            width: 300px;
+            color: rgba(255, 255, 255, 0.95);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 28px;
+            letter-spacing: 8px;
+            text-align: center;
+            text-shadow: 0 0 15px #00f9e6;
+            background: rgba(0, 15, 22, 0.6);
+            padding: 20px 40px;
+            border-radius: 10px;
+            border: 2px solid #00f9e6;
+            box-shadow: 0 0 30px #00f9e6;
+            backdrop-filter: blur(6px);
+            z-index: 10;
+            /* Digital time display with neon styling */
+        }
+        
+        /* Targeting overlay at 3 o'clock position */
+        .target-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 410px;
+            height: 410px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 20;
+            /* Container for the targeting elements */
+        }
+        
+        /* Reticle styling */
+        .target-reticle {
+            position: absolute;
+            top: 50%;
+            right: -55px;
+            transform: translateY(-50%);
+            z-index: 20;
+            width: 220px;
+            height: 80px;
+            /* Positions at 3 o'clock for time reading */
+        }
+        
+        /* Laser line leading to diamonds */
+        .target-line {
+            position: absolute;
+            height: 5px;
+            background: linear-gradient(90deg, rgba(255, 0, 212, 0), rgba(255,0,212,1) 70%);
+            box-shadow: 0 0 25px #FF00D4;
+            border-radius: 2px;
+            top: 50%;
+            left: 30px;
+            transform: translateY(-50%);
+            width: 120px;
+            /* Laser beam line pointing to diamonds */
+        }
+        
+        /* Diamond shaped reticle */
+        .target-diamond {
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: #FF00D4;
+            box-shadow: 0 0 30px #FF00D4;
+            transform: translateY(-50%) rotate(45deg);
+            top: 50%;
+            left: 149px;
+            animation: scanPulse 2s infinite;
+            /* Animated diamonds for futuristic look */
+        }
+        
+        /* Reticle pulsing animation */
+        @keyframes scanPulse {
+            0% { 
+                box-shadow: 0 0 0 0 rgba(255, 0, 212, 0.8); 
+            }
+            70% { 
+                box-shadow: 0 0 0 20px rgba(255, 0, 212, 0); 
+            }
+            100% { 
+                box-shadow: 0 0 0 0 rgba(255, 0, 212, 0); 
+            }
+            /* Creates a pulsing halo around the diamonds */
+        }
+        
+        /* Particle animation setup */
+        @keyframes particleFloat {
+            0% { 
+                transform: translate(0, 0) scale(0.3); 
+                opacity: 1;
+            }
+            100% { 
+                transform: translate(var(--end-x), var(--end-y)) scale(1); 
+                opacity: 0;
+            }
+            /* Animation for floating particles */
+        }
+        
+        /* Corner decorations */
+        .corner-glow {
+            position: fixed;
+            width: 60px;
+            height: 60px;
+            border: 3px solid;
+            box-shadow: 0 0 25px;
+            z-index: 5;
+            /* Container for screen corner decorations */
+        }
+        
+        /* Position in top-left */
+        .corner-tl {
+            top: 40px;
+            left: 40px;
+            border-color: #00f9e6;
+            box-shadow: 0 0 30px #00f9e6;
+            border-right: none;
+            border-bottom: none;
+            /* Glowing corner piece top left */
+        }
+        
+        /* Position in top-right */
+        .corner-tr {
+            top: 40px;
+            right: 40px;
+            border-color: #ff00d4;
+            box-shadow: 0 0 30px #ff00d4;
+            border-left: none;
+            border-bottom: none;
+            /* Glowing corner piece top right */
+        }
+        
+        /* Position in bottom-left */
+        .corner-bl {
+            bottom: 40px;
+            left: 40px;
+            border-color: #4294ff;
+            box-shadow: 0 0 30px #4294ff;
+            border-right: none;
+            border-top: none;
+            /* Glowing corner piece bottom left */
+        }
+        
+        /* Position in bottom-right */
+        .corner-br {
+            bottom: 40px;
+            right: 40px;
+            border-color: #7d42ff;
+            box-shadow: 0 0 30px #7d42ff;
+            border-left: none;
+            border-top: none;
+            /* Glowing corner piece bottom right */
+        }
+        
+        /* Animated border around viewport */
+        .border-animate {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 3;
+            /* Parent for moving border animations */
+        }
+        
+        /* Base style for animated lines */
+        .line {
+            position: absolute;
+            /* Each line is positioned absolutely */
+        }
+        
+        /* Top animated line */
+        .top-line {
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00f9e6, transparent);
+            box-shadow: 0 0 15px #00f9e6;
+            animation: slideLine 5s linear infinite;
+            /* Moving line at top edge */
+        }
+        
+        /* Right animated line */
+        .right-line {
+            top: -100%;
+            right: 0;
+            height: 100%;
+            width: 2px;
+            background: linear-gradient(180deg, transparent, #ff00d4, transparent);
+            box-shadow: 0 0 15px #ff00d4;
+            animation: slideLine 7s linear infinite;
+            animation-delay: 1.25s;
+            /* Moving line at right edge */
+        }
+        
+        /* Bottom animated line */
+        .bottom-line {
+            bottom: 0;
+            right: -100%;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #4294ff, transparent);
+            box-shadow: 0 0 15px #4294ff;
+            animation: slideLine 5s linear infinite;
+            animation-delay: 2.5s;
+            /* Moving line at bottom edge */
+        }
+        
+        /* Left animated line */
+        .left-line {
+            bottom: -100%;
+            left: 0;
+            height: 100%;
+            width: 2px;
+            background: linear-gradient(180deg, transparent, #7d42ff, transparent);
+            box-shadow: 0 0 15px #7d42ff;
+            animation: slideLine 7s linear infinite;
+            animation-delay: 3.75s;
+            /* Moving line at left edge */
+        }
+        
+        /* Animation for side lines */
+        @keyframes slideLine {
+            0% { transform: translateX(0) translateY(0); }
+            100% { transform: translateX(200%) translateY(200%); }
+            /* Moves each border line diagonally */
+        }
+        
+        /* Particle container */
+        .particle-container {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            right: 20px;
+            width: 80px;
+            height: 80px;
+            pointer-events: none;
+            z-index: 30;
+            /* Positions particles relative to reticle */
+        }
+        
+        /* Individual particles */
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 0, 212, 0.8);
+            filter: blur(2px);
+            animation: particleFloat 1s linear forwards;
+            /* Floating dots emitted from reticle */
+        }
+    </style>
+</head>
+<body>
+    <!-- Matrix effect will be generated via JavaScript -->
+    <div id="matrix-container" class="matrix-container"></div>
+    
+    <!-- Grid overlay -->
+    <div class="grid-overlay"></div>
+    
+    <!-- Page title styled in cyberpunk theme -->
+    <div class="title">Chr0n0 M0m3t3r</div>
+    
+    <!-- Decorative corners with glow effects -->
+    <div class="corner-glow corner-tl"></div>
+    <div class="corner-glow corner-tr"></div>
+    <div class="corner-glow corner-bl"></div>
+    <div class="corner-glow corner-br"></div>
+    
+    <!-- Animated borders around viewport -->
+    <div class="border-animate">
+        <div class="line top-line"></div>
+        <div class="line right-line"></div>
+        <div class="line bottom-line"></div>
+        <div class="line left-line"></div>
+    </div>
+    
+    <!-- Main clock container -->
+    <div class="clock-container">
+        <!-- Outer ring for seconds -->
+        <div class="circle second-donut donut">
+            <div id="second-ticks" class="ticks"></div>
+        </div>
+        
+        <!-- Middle ring for minutes -->
+        <div class="circle minute-donut donut">
+            <div id="minute-ticks" class="ticks"></div>
+        </div>
+        
+        <!-- Inner circle for hours -->
+        <div class="circle hour-circle">
+            <div class="hour-display">00</div>
+        </div>
+        
+        <!-- Targeting reticle at 3 o'clock position -->
+        <div class="target-overlay">
+            <div class="target-reticle">
+                <div class="target-line"></div>
+                <div class="target-diamond"></div>
+                <!-- Particles will be added here via JS -->
+                <div class="particle-container" id="particles"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Digital time display -->
+    <div class="digital" id="digital-clock">00:00:00</div>
+
+    <script>
+        // Main initialization when document loads
+        document.addEventListener("DOMContentLoaded", function() {
+            // DOM elements for clock components
+            const hourDisplay = document.querySelector('.hour-display');
+            const minuteTicks = document.getElementById('minute-ticks');
+            const secondTicks = document.getElementById('second-ticks');
+            const digitalClock = document.getElementById('digital-clock');
+            const particleContainer = document.getElementById('particles');
+            const matrixContainer = document.getElementById('matrix-container');
+            
+            // Create "Matrix code rain" effect
+            function createMatrixEffect() {
+                // Characters to simulate falling code
+                const chars = "01!@$%&*ÑæÆØPÊƒÜÖç";
+                // Determine how many columns based on screen width
+                const trackCount = Math.floor(window.innerWidth / 32);
+                
+                // Create each vertical column of falling characters
+                for(let i=0; i<trackCount; i++) {
+                    const track = document.createElement('div');
+                    track.className = 'matrix-track';
+                    // Position columns across screen
+                    track.style.left = (i * 32) + 'px';
+                    // Randomize start time for each track
+                    track.style.animation = `slideLine ${Math.random()*20 + 50}s linear infinite`;
+                    track.style.animationDelay = Math.random() * 30 + 's';
+                    
+                    // Create content of column
+                    let content = '';
+                    const length = 100;
+                    // Populate with random cyrillic-like characters
+                    for(let j=0; j<length; j++) {
+                        if (Math.random() > 0.15) {
+                            content += chars.charAt(Math.floor(Math.random() * chars.length));
+                        } else {
+                            content += ' ';
+                        }
+                    }
+                    
+                    track.textContent = content;
+                    matrixContainer.appendChild(track);
+                }
+            }
+            
+            // Create minute markings (00-55) around the ring
+            function createMinuteMarkings() {
+                // Create 60 tick marks (one per minute)
+                for (let i = 0; i < 60; i++) {
+                    const isMajorTick = i % 5 === 0; // Major ticks at 5-minute intervals
+                    
+                    // Create number displays at each major tick
+                    if (isMajorTick) {
+                        const num = document.createElement('div');
+                        num.className = 'number minute-num';
+                        num.textContent = i.toString().padStart(2, '0'); // Format as 00, 05, 10, etc.
+                        num.style.top = '10px';
+                        num.style.left = '50%';
+                        num.style.transform = 'translateX(-50%)';
+                        
+                        // Rotate number into correct position on circle
+                        const numContainer = document.createElement('div');
+                        numContainer.className = 'tick-container';
+                        numContainer.style.transform = `rotate(${i * 6}deg)`;
+                        numContainer.appendChild(num);
+                        minuteTicks.appendChild(numContainer);
+                    }
+                    
+                    // Create tick marks (thicker for major ticks)
+                    const minuteTick = document.createElement('div');
+                    minuteTick.className = isMajorTick ? 'tick minute-tick' : 'tick minute-tick minor';
+                    minuteTick.style.top = '0';
+                    minuteTick.style.transform = 'translateX(-50%)';
+                    minuteTick.style.transformOrigin = 'center 170px'; // Radial positioning
+                    
+                    // Add tick to container and rotate to correct position
+                    const minuteTickContainer = document.createElement('div');
+                    minuteTickContainer.className = 'tick-container';
+                    minuteTickContainer.style.transform = `rotate(${i * 6}deg)`;
+                    minuteTickContainer.appendChild(minuteTick);
+                    minuteTicks.appendChild(minuteTickContainer);
+                }
+            }
+            
+            // Create second markings (00-55) similar to minutes
+            function createSecondMarkings() {
+                for (let i = 0; i < 60; i++) {
+                    const isMajorTick = i % 5 === 0;
+                    
+                    // Create number displays at major ticks
+                    if (isMajorTick) {
+                        const num = document.createElement('div');
+                        num.className = 'number second-num';
+                        num.textContent = i.toString().padStart(2, '0');
+                        num.style.top = '10px';
+                        num.style.left = '50%';
+                        num.style.transform = 'translateX(-50%)';
+                        
+                        const numContainer = document.createElement('div');
+                        numContainer.className = 'tick-container';
+                        numContainer.style.transform = `rotate(${i * 6}deg)`;
+                        numContainer.appendChild(num);
+                        secondTicks.appendChild(numContainer);
+                    }
+                    
+                    // Create tick marks
+                    const secondTick = document.createElement('div');
+                    secondTick.className = 'tick second-tick';
+                    secondTick.style.top = '0';
+                    secondTick.style.transform = 'translateX(-50%)';
+                    secondTick.style.transformOrigin = 'center 205px';
+                    
+                    const secondTickContainer = document.createElement('div');
+                    secondTickContainer.className = 'tick-container';
+                    secondTickContainer.style.transform = `rotate(${i * 6}deg)`;
+                    secondTickContainer.appendChild(secondTick);
+                    secondTicks.appendChild(secondTickContainer);
+                }
+            }
+            
+            // Create particle visual effects
+            function createParticle() {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particleContainer.appendChild(particle);
+                
+                // Random particle size (2-8px)
+                const size = Math.random() * 6 + 2;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                
+                // Position particles near the reticle
+                particle.style.left = `40px`;
+                particle.style.top = `40px`;
+                
+                // Calculate random direction and distance for particle travel
+                const angle = Math.random() * Math.PI * 2; // Random angle
+                const distance = Math.random() * 50 + 30; // Distance in pixels
+                const endX = Math.cos(angle) * distance;
+                const endY = Math.sin(angle) * distance;
+                
+                // Set animation endpoint
+                particle.style.setProperty('--end-x', `${endX}px`);
+                particle.style.setProperty('--end-y', `${endY}px`);
+                
+                // Set random animation duration (0.8-2.3 seconds)
+                particle.style.animation = `particleFloat ${Math.random() * 1.5 + 0.8}s forwards`;
+                
+                // Clean up particle elements after animation
+                setTimeout(() => {
+                    particle.remove();
+                }, 1500);
+            }
+            
+            // Update clock position and time display
+            function updateClock() {
+                const now = new Date();
+                const hours = now.getHours();
+                const minutes = now.getMinutes();
+                const seconds = now.getSeconds();
+                const milliseconds = now.getMilliseconds();
+                
+                // Convert to 12-hour format for the analog display
+                const displayHours = hours % 12 || 12; // Convert to 12-hour format, 12 instead of 0
+                
+                // Update hour display in the center
+                hourDisplay.textContent = displayHours.toString().padStart(2, '0');
+                
+                // Calculate rotations:
+                // - Subtract 90° so 0 starts at 12 o'clock position
+                // - Seconds and minutes rings rotate counter-clockwise to show current time at 3 o'clock position
+                const minuteRotation = 90 - (minutes * 6 + seconds * 0.1); // 6° per minute + 0.1° per second for smooth motion
+                const secondRotation = 90 - (seconds * 6 + milliseconds * 0.006); // 6° per second + fractional for smoothness
+                
+                // Apply rotations to the rings
+                minuteTicks.parentElement.style.transform = `rotate(${minuteRotation}deg)`;
+                secondTicks.parentElement.style.transform = `rotate(${secondRotation}deg)`;
+                
+                // Update digital time display (24h format)
+                digitalClock.textContent = 
+                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                // Create particles at regular intervals - about 30 times per second
+                if (milliseconds % 30 === 0) {
+                    createParticle();
+                }
+                
+                // Continue the animation loop
+                requestAnimationFrame(updateClock);
+            }
+            
+            // Run initialization functions
+            createMatrixEffect(); // Create the background matrix effect
+            createMinuteMarkings(); // Add minute ticks to the middle ring
+            createSecondMarkings(); // Add second ticks to the outer ring
+            updateClock(); // Start the clock animation
+        });
+    </script>
+</body>
+</html>
+
