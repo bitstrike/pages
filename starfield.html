@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Flight Starfield</title>
+    <style>
+        /* Remove default margin and ensure canvas fills viewport */
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+        }
+        /* Ensure canvas displays as block element */
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- Canvas element for rendering the starfield -->
+    <canvas id="starfield"></canvas>
+    <script>
+        // Get references to canvas element and its 2D drawing context
+        const canvas = document.getElementById('starfield');
+        const ctx = canvas.getContext('2d');
+
+        // Function to handle window resizing and maintain proper canvas dimensions
+        function resizeCanvas() {
+            // Set canvas dimensions to match viewport
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        
+        // Initialize canvas on load and add resize listener
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        /**
+         * Star class represents individual stars in 3D space
+         * Each star has position (x,y,z) and size properties
+         * Uses perspective projection for 3D effect
+         */
+        class Star {
+            constructor() {
+                // Initialize star with random position relative to center
+                // Using canvas width/height for proper centering
+                this.x = Math.random() * canvas.width - canvas.width/2;
+                this.y = Math.random() * canvas.height - canvas.height/2;
+                
+                // Start stars further away (z=500-2000) for slower effect
+                // Larger z values create more distant stars
+                this.z = Math.random() * 3500 + 500;
+                
+                // Small base size (1-3 pixels) for realistic star appearance
+                this.size = Math.random() * 2 + 1;
+            }
+
+            /**
+             * Updates star position based on movement speed
+             * @param {number} speed - Movement speed along z-axis
+             */
+            update(speed) {
+                // Move star forward along z-axis
+                // Negative speed moves star towards viewer
+                this.z -= speed;
+                
+                // Reset star when it gets too close to viewer
+                // New position is randomly generated at distance
+                if (this.z <= 0) {
+                    this.z = 1500; // Reset to starting distance
+                    this.x = Math.random() * canvas.width - canvas.width/2;
+                    this.y = Math.random() * canvas.height - canvas.height/2;
+                }
+            }
+
+            /**
+             * Draws the star on canvas using perspective projection
+             * Size scales with distance from viewer
+             */
+            draw() {
+                // Perspective projection formula: screenPos = worldPos * (focalLength / z)
+                // Using 500 as focal length for realistic perspective
+                const k = 500 / this.z;
+                
+                // Calculate screen position
+                const px = this.x * k + canvas.width/2;  // Center x coordinate
+                const py = this.y * k + canvas.height/2; // Center y coordinate
+                
+                // Star size scales with distance
+                const size = this.size * k;
+
+                // Draw star as white circle
+                ctx.beginPath();
+                ctx.arc(px, py, size, 0, Math.PI * 2);
+                ctx.fillStyle = 'white';
+                ctx.fill();
+            }
+        }
+
+        // Create array to hold all star objects
+        const stars = [];
+        
+        // Number of stars to render (200 provides good performance/visual balance)
+        const numberOfStars = 200;
+
+        // Initialize starfield with specified number of stars
+        for (let i = 0; i < numberOfStars; i++) {
+            stars.push(new Star());
+        }
+
+        // Animation variables
+        let lastTime = 0;
+        const speed = 2; // Lower values = slower movement
+
+        /**
+         * Main animation loop using requestAnimationFrame
+         * @param {number} currentTime - Current timestamp in milliseconds
+         */
+        function animate(currentTime) {
+            // Calculate time elapsed since last frame
+            const deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+
+            // Create subtle trailing effect by partially clearing canvas
+            // Alpha value of 0.1 creates smooth motion trails
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Update and redraw all stars
+            stars.forEach(star => {
+                star.update(speed);
+                star.draw();
+            });
+
+            // Request next animation frame
+            requestAnimationFrame(animate);
+        }
+
+        // Start the animation loop
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>
