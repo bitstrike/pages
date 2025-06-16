@@ -146,7 +146,7 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
                 0 0 20px #FF00D4, 
                 inset 0 0 10px #FF00D4;
             z-index: 15;
-            animation: hourPulse 4s infinite ease-in-out;
+            animation: hourPulse 3600s infinite ease-in-out;
         }
         
         .hour-display {
@@ -514,7 +514,9 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
             // Time tracking variables
             let lastParticleTime = 0;
             let lastRandomSpark = Date.now();
-
+            let lastSecondRotation = 0;      // for tracking direction of rotation (wrapping)
+            let lastMinuteRotation = 0;      // for tracking direction of rotation (wrapping)
+            
             // Matrix rain effect for background
             function createMatrixEffect() {
                 const chars = "01!@$%&*ÑæÆØPÊƒÜÖç";
@@ -541,16 +543,17 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
 
             // Create circular tick marks for minutes and seconds
             function createClockMarkings(container, options) {
+                var padding = 5;
                 for (let i = 0; i < 60; i++) {
                     // For major ticks (every 5 units) create numbers and ticks
                     const isMajor = i % 5 === 0;
                     if (isMajor) {
                         const num = document.createElement('div');
                         num.className = `number ${options.numberClass}`;
-                        num.textContent = i.toString().padStart(2, '0');
-                        num.style.top = (options.inset) + 'px';
-                        num.style.left = '50%';
-                        num.style.transform = 'translateX(-50%)';
+                        num.textContent = i.toString().padStart(2, '0'); // start with 00
+                        num.style.top = (options.inset + padding) + 'px';          // 12px
+                        num.style.left = '50%';                        
+                        num.style.transform = 'translateX(-50%)';   
                         
                         const numContainer = document.createElement('div');
                         numContainer.className = 'tick-container';
@@ -649,6 +652,17 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
                 }
             }
 
+            function rotationFix(rawRotation, lastRotation) {
+                if (rawRotation < lastRotation - 180) {
+                    // Crossing 360° boundary clockwise
+                    return rawRotation + 360;
+                } else if (rawRotation > lastRotation + 180) {
+                    // Crossing 360° boundary counter-clockwise
+                    return rawRotation - 360;
+                }
+                return rawRotation;
+            }
+
             // Update the clock hands and time displays
             function updateClock() {
                 const now = new Date();
@@ -660,26 +674,33 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
                 // Convert to 12-hour display
                 const displayHours = hours % 12 || 12;
                 clockElements.hourDisplay.textContent = displayHours.toString().padStart(2, '0');
+
+                // Calculate raw rotations
+                const rawMinuteRotation = 90 - (minutes * 6 + seconds * 0.1);
+                const rawSecondRotation = 90 - (seconds * 6 + milliseconds * 0.006);
+    
+                // Apply rotation fix to both hands
+                const smoothMinuteRotation = rotationFix(rawMinuteRotation, lastMinuteRotation);
+                const smoothSecondRotation = rotationFix(rawSecondRotation, lastSecondRotation);
+    
                 
-                // Create analog rotations for minute and second rings
-                const minuteRotation = 90 - (minutes * 6 + seconds * 0.1);
-                const secondRotation = 90 - (seconds * 6 + milliseconds * 0.006);
-                
-                // Apply rotation transforms smoothly
-                clockElements.minuteDonut.style.transform = `rotate(${minuteRotation}deg)`;
-                clockElements.secondDonut.style.transform = `rotate(${secondRotation}deg)`;
+                // Apply transforms
+                clockElements.minuteDonut.style.transform = `rotate(${smoothMinuteRotation}deg)`;
+                clockElements.secondDonut.style.transform = `rotate(${smoothSecondRotation}deg)`;
                 
                 // Update digital clock
-                clockElements.digitalClock.textContent = 
-                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                clockElements.digitalClock.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
                 
                 // Trigger occasional sparks
                 triggerRandomSparks();
                 
+                // Update last rotation for next frame
+                lastSecondRotation = smoothSecondRotation;
+                lastMinuteRotation = smoothMinuteRotation;
+
                 // Continue animation loop
                 requestAnimationFrame(updateClock);
             }
-
             // Initialize the clock
             function init() {
                 createClockMarkings(clockElements.minuteTicks, {
