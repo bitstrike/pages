@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Time</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0c0f13;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Orbitron', sans-serif;
+            color: #00FFFF;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* Starfield background canvas */
+        #starfield-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+        }
+        
+        /* Clock container */
+        .clock-container {
+            position: relative;
+            width: 600px;
+            height: 600px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* Shared ring styles */
+        .ring {
+            position: absolute;
+            border-radius: 50%;
+            transform-origin: center center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        /* Hour ring (innermost) - shows current hour in center */
+        #hour-ring {
+            width: 180px;
+            height: 180px;
+            border: 3px solid #03D8F3;
+            box-shadow: 
+                0 0 15px #00B8FF,
+                0 0 25px rgba(0, 184, 255, 0.4),
+                inset 0 0 8px rgba(0, 184, 255, 0.5);
+            background: rgba(0, 18, 28, 0.5);
+            z-index: 40;
+        }
+        
+        /* Minutes ring - rotates once per hour */
+        #minute-ring {
+            width: 340px;
+            height: 340px;
+            border: 2px solid #7F00FF;
+            box-shadow: 
+                0 0 15px #8000FF,
+                0 0 30px rgba(128, 0, 255, 0.4),
+                inset 0 0 8px rgba(128, 0, 255, 0.3);
+            background: rgba(28, 5, 51, 0.3);
+            z-index: 30;
+        }
+        
+        /* Seconds ring - rotates once per minute with continuous sweep */
+        #second-ring {
+            width: 500px;
+            height: 500px;
+            border: 2px solid #00FF9F;
+            box-shadow: 
+                0 0 15px #00FF9F,
+                0 0 30px rgba(0, 255, 159, 0.3),
+                inset 0 0 8px rgba(0, 255, 159, 0.3);
+            background: rgba(8, 28, 14, 0.3);
+            z-index: 20;
+        }
+        
+        /* Hour display in center of innermost ring */
+        .hour-display {
+            font-size: 3.8rem;
+            font-weight: 700;
+            color: #FFFFFF;
+            text-shadow: 
+                0 0 15px #00FFFF,
+                0 0 25px #00FFFF;
+            z-index: 50;
+            user-select: none;
+        }
+        
+        /* Fixed indicator at 12 o'clock position for reading current time */
+        .indicator {
+            position: absolute;
+            width: 40px;
+            height: 20px;
+            background: rgba(0, 255, 255, 0.4);
+            border-radius: 10px;
+            clip-path: polygon(50% 100%, 0 0, 100% 0);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.7);
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 45;
+            backdrop-filter: blur(2px);
+        }
+        
+        /* Translucent pink neon line at 3 o'clock position */
+        #idica3 {
+            position: absolute;
+            width: 150px;
+            height: 4px;
+            background: rgba(255, 20, 147, 0.6);
+            border-radius: 2px;
+            box-shadow: 
+                0 0 10px rgba(255, 20, 147, 0.8),
+                0 0 20px rgba(255, 20, 147, 0.4);
+            right: -2px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 15;
+        }
+        
+        /* Tick marks for both rings */
+        .tick-marks {
+            position: absolute;
+            height: 100%;
+            width: 100%;
+            border-radius: 50%;
+            top: 0;
+            left: 0;
+        }
+        
+        .tick {
+            position: absolute;
+            background: #FFFFFF;
+            width: 2px;
+            transform-origin: center center;
+            box-shadow: 0 0 3px rgba(255, 255, 255, 0.7);
+        }
+        
+        /* Labels positioned outside the rings showing 00-55 every 5 marks */
+        .tick-label {
+            position: absolute;
+            color: #FFFFFF;
+            font-size: 14px;
+            text-shadow: 
+                0 0 8px #FFFFFF, 
+                0 0 10px currentColor;
+            font-weight: 500;
+            transform: translate(-50%, -50%);
+            z-index: 35;
+            pointer-events: none;
+            left: 50%;
+            top: 50%;
+        }
+        
+        /* Spark particles that appear randomly every 10 seconds */
+        .spark {
+            position: absolute;
+            background: #F2E900;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 100;
+            box-shadow: 0 0 10px #F2E900, 0 0 20px rgba(242, 233, 0, 0.6);
+        }
+        
+        /* Center dot for visual reference */
+        .center-dot {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: #FFFFFF;
+            border-radius: 50%;
+            box-shadow: 0 0 15px #00FFFF, 0 0 30px rgba(0, 255, 255, 0.6);
+            z-index: 100;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        /* Title at top of screen */
+        .title {
+            position: absolute;
+            top: 30px;
+            font-size: 2.2rem;
+            letter-spacing: 4px;
+            color: #00FF9F;
+            text-shadow: 0 0 15px #00FF9F, 0 0 25px rgba(0, 255, 159, 0.7);
+            text-align: center;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="title">SPACE TIME CHR0N0M0METER</div>
+    
+    <!-- Starfield background -->
+    <canvas id="starfield-canvas"></canvas>
+    
+    <div class="clock-container">
+        <!-- Seconds ring (outermost) - 00-55 labels, rotates once per minute -->
+        <div class="ring" id="second-ring">
+            <div class="tick-marks" id="second-ticks"></div>
+        </div>
+        
+        <!-- Minutes ring (middle) - 00-55 labels, rotates once per hour -->
+        <div class="ring" id="minute-ring">
+            <div class="tick-marks" id="minute-ticks"></div>
+        </div>
+        
+        <!-- Hour ring (innermost) - displays current hour in center -->
+        <div class="ring" id="hour-ring">
+            <div class="hour-display" id="hour-display">00</div>
+        </div>
+        
+        <!-- Fixed indicator at 12 o'clock position for reading time -->
+        <div class="indicator"></div>
+        
+        <!-- Pink neon line at 3 o'clock position -->
+        <div id="idica3"></div>
+        
+        <div class="center-dot"></div>
+    </div>
+
+    <script>
+        // ===== STARFIELD CONFIGURATION CONSTANTS =====
+        const STARFIELD_CONFIG = {
+            STAR_COUNT: 700,                    // Number of stars in the field
+            WARP_SPEED: 0.005,                   // Speed of movement through space
+            MAX_DEPTH: 400,                    // Maximum Z-distance for stars
+            MIN_DEPTH: 1,                       // Minimum Z-distance for stars
+            STAR_COLORS: [                      // Star and planet colors
+                '#FFFFFF', '#FFE6CC', '#CCE6FF', '#E6F3FF',
+                '#FFCCCC', '#CCFFCC', '#FFCCFF', '#FFFFCC'
+            ],
+            PLANET_COLORS: [                    // Larger celestial body colors
+                '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
+                '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'
+            ],
+            PLANET_CHANCE: 0.02,                // Probability of spawning a planet vs star
+            MIN_STAR_SIZE: 1,                   // Minimum star size when distant
+            MAX_STAR_SIZE: 2,                   // Maximum star size when close
+            MIN_PLANET_SIZE: 3,                 // Minimum planet size when distant
+            MAX_PLANET_SIZE: 20,                // Maximum planet size when close
+            TRAIL_LENGTH: 0.25,                 // Motion blur effect (0-1, higher = longer trails)
+            FOV: 300                            // Field of view (affects perspective)
+        };
+        
+        // Initialize DOM elements for clock components
+        const hourDisplay = document.getElementById('hour-display');
+        const hourRing = document.getElementById('hour-ring');
+        const minuteRing = document.getElementById('minute-ring');
+        const secondRing = document.getElementById('second-ring');
+        const minuteTicks = document.getElementById('minute-ticks');
+        const secondTicks = document.getElementById('second-ticks');
+        const starfieldCanvas = document.getElementById('starfield-canvas');
+        const starfieldCtx = starfieldCanvas.getContext('2d');
+        
+        // Starfield variables
+        let stars = [];
+        
+        // Spark management for particle effects
+        const sparks = [];
+        let lastSparkTime = 0;
+        const sparkColors = ['#F2E900', '#FCEE0C', '#FFFF00', '#FFCC00'];
+        
+        /**
+         * Star class for 3D starfield simulation
+         */
+        class Star {
+            constructor() {
+                this.reset();
+            }
+            
+            reset() {
+                // Position in 3D space (center of screen is 0,0)
+                this.x = (Math.random() - 0.5) * 2000;
+                this.y = (Math.random() - 0.5) * 2000;
+                this.z = Math.random() * STARFIELD_CONFIG.MAX_DEPTH + STARFIELD_CONFIG.MIN_DEPTH;
+                
+                // Store previous position for trail effect
+                this.prevX = this.x;
+                this.prevY = this.y;
+                this.prevZ = this.z;
+                
+                // Determine if this is a planet (larger, rarer)
+                this.isPlanet = Math.random() < STARFIELD_CONFIG.PLANET_CHANCE;
+                
+                if (this.isPlanet) {
+                    this.color = STARFIELD_CONFIG.PLANET_COLORS[
+                        Math.floor(Math.random() * STARFIELD_CONFIG.PLANET_COLORS.length)
+                    ];
+                    this.baseSize = Math.random() * 3 + 2; // Larger base size for planets
+                } else {
+                    this.color = STARFIELD_CONFIG.STAR_COLORS[
+                        Math.floor(Math.random() * STARFIELD_CONFIG.STAR_COLORS.length)
+                    ];
+                    this.baseSize = Math.random() * 2 + 0.5; // Smaller base size for stars
+                }
+            }
+            
+            update() {
+                // Store previous position for trails
+                this.prevX = this.x;
+                this.prevY = this.y;
+                this.prevZ = this.z;
+                
+                // Move towards viewer
+                this.z -= STARFIELD_CONFIG.WARP_SPEED * this.z;
+                
+                // Reset star if it's passed the viewer
+                if (this.z <= STARFIELD_CONFIG.MIN_DEPTH) {
+                    this.reset();
+                }
+            }
+            
+            draw(ctx) {
+                // Convert 3D position to 2D screen coordinates
+                const centerX = starfieldCanvas.width / 2;
+                const centerY = starfieldCanvas.height / 2;
+                
+                const x = (this.x / this.z) * STARFIELD_CONFIG.FOV + centerX;
+                const y = (this.y / this.z) * STARFIELD_CONFIG.FOV + centerY;
+                
+                const prevX = (this.prevX / this.prevZ) * STARFIELD_CONFIG.FOV + centerX;
+                const prevY = (this.prevY / this.prevZ) * STARFIELD_CONFIG.FOV + centerY;
+                
+                // Skip if off screen
+                if (x < -50 || x > starfieldCanvas.width + 50 || 
+                    y < -50 || y > starfieldCanvas.height + 50) {
+                    return;
+                }
+                
+                // Calculate size based on distance (closer = larger)
+                let size;
+                if (this.isPlanet) {
+                    size = (this.baseSize / this.z) * STARFIELD_CONFIG.FOV;
+                    size = Math.max(STARFIELD_CONFIG.MIN_PLANET_SIZE, 
+                           Math.min(STARFIELD_CONFIG.MAX_PLANET_SIZE, size));
+                } else {
+                    size = (this.baseSize / this.z) * STARFIELD_CONFIG.FOV;
+                    size = Math.max(STARFIELD_CONFIG.MIN_STAR_SIZE, 
+                           Math.min(STARFIELD_CONFIG.MAX_STAR_SIZE, size));
+                }
+                
+                // Calculate opacity based on distance
+                const opacity = Math.min(1, (STARFIELD_CONFIG.MAX_DEPTH - this.z) / STARFIELD_CONFIG.MAX_DEPTH);
+                
+                ctx.save();
+                
+                // Draw motion trail for warp effect
+                if (Math.abs(x - prevX) > 1 || Math.abs(y - prevY) > 1) {
+                    const gradient = ctx.createLinearGradient(prevX, prevY, x, y);
+                    gradient.addColorStop(0, this.color + '00'); // Transparent
+                    gradient.addColorStop(1, this.color + Math.floor(opacity * 255).toString(16).padStart(2, '0'));
+                    
+                    ctx.strokeStyle = gradient;
+                    ctx.lineWidth = size * 0.5;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(prevX, prevY);
+                    ctx.lineTo(x, y);
+                    ctx.stroke();
+                }
+                
+                // Draw the star/planet
+                ctx.globalAlpha = opacity;
+                ctx.fillStyle = this.color;
+                
+                if (this.isPlanet && size > 8) {
+                    // Draw planets with glow effect
+                    ctx.shadowColor = this.color;
+                    ctx.shadowBlur = size;
+                }
+                
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+            }
+        }
+        
+        /**
+         * Initialize starfield canvas and create stars
+         */
+        function initStarfield() {
+            starfieldCanvas.width = window.innerWidth;
+            starfieldCanvas.height = window.innerHeight;
+            
+            stars = [];
+            for (let i = 0; i < STARFIELD_CONFIG.STAR_COUNT; i++) {
+                stars.push(new Star());
+            }
+        }
+        
+        /**
+         * Update and render starfield
+         */
+        function updateStarfield() {
+            // Create motion blur effect by not completely clearing canvas
+            starfieldCtx.fillStyle = `rgba(12, 15, 19, ${1 - STARFIELD_CONFIG.TRAIL_LENGTH})`;
+            starfieldCtx.fillRect(0, 0, starfieldCanvas.width, starfieldCanvas.height);
+            
+            // Update and draw all stars
+            stars.forEach(star => {
+                star.update();
+                star.draw(starfieldCtx);
+            });
+        }
+        
+        /**
+         * Creates tick marks and labels for both minute and second rings
+         * Labels show 00-55 every 5 ticks as per specification
+         */
+        function createTicks() {
+            // Create minute ring ticks (middle ring)
+            createRingTicks(minuteTicks, minuteRing, 170, '#FCEE0C', true);
+            
+            // Create second ring ticks (outer ring)
+            createRingTicks(secondTicks, secondRing, 250, '#00B8FF', false);
+        }
+        
+        /**
+         * Creates 60 tick marks around a ring with labels every 5 ticks
+         * Only shows labels for 00-55 (12 labels total) as per spec
+         */
+        function createRingTicks(ringContainer, ringElement, radius, color, isMinuteRing) {
+            ringContainer.innerHTML = '';
+            
+            // Remove existing labels for this ring
+            const existingLabels = document.querySelectorAll(`.tick-label[data-ring="${isMinuteRing ? 'minute' : 'second'}"]`);
+            existingLabels.forEach(label => label.remove());
+            
+            // Create 60 tick marks around the ring
+            for (let i = 0; i < 60; i++) {
+                const angle = (i / 60) * Math.PI * 2 - Math.PI / 2; // Start at 12 o'clock
+                const tick = document.createElement('div');
+                tick.className = 'tick';
+                
+                // Create labels every 5 ticks, but only for values 00-55
+                if (i % 5 === 0 && i <= 55) {
+                    const label = document.createElement('div');
+                    label.className = 'tick-label';
+                    label.setAttribute('data-ring', isMinuteRing ? 'minute' : 'second');
+                    label.textContent = i.toString().padStart(2, '0');
+                    label.style.color = color;
+                    
+                    // Position labels outside the ring, centered on the same center as the ring
+                    const labelRadius = radius + (isMinuteRing ? 25 : 30);
+                    const labelX = labelRadius * Math.cos(angle);
+                    const labelY = labelRadius * Math.sin(angle);
+                    
+                    // Store original position relative to ring center for rotation calculations
+                    label.setAttribute('data-original-x', labelX);
+                    label.setAttribute('data-original-y', labelY);
+                    label.setAttribute('data-radius', labelRadius);
+                    
+                    // Initial positioning
+                    label.style.transform = `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`;
+                    
+                    // Make labels rotate with their respective rings
+                    if (isMinuteRing) {
+                        label.setAttribute('data-minute-label', 'true');
+                    } else {
+                        label.setAttribute('data-second-label', 'true');
+                    }
+                    
+                    // Larger tick marks for labeled positions
+                    tick.style.height = '18px';
+                    tick.style.background = '#FFFFFF';
+                    
+                    ringElement.appendChild(label);
+                } else {
+                    // Standard smaller tick marks
+                    tick.style.height = '10px';
+                    tick.style.background = `rgba(255, 255, 255, ${isMinuteRing ? 0.7 : 0.5})`;
+                }
+                
+                // Position tick marks properly on the ring circumference
+                const x = 50 + 50 * Math.cos(angle); // Center + radius in percentage
+                const y = 50 + 50 * Math.sin(angle);
+                tick.style.left = `${x}%`;
+                tick.style.top = `${y}%`;
+                tick.style.transform = `translate(-50%, -50%) rotate(${angle + Math.PI/2}rad)`;
+                tick.style.transformOrigin = 'center';
+                
+                ringContainer.appendChild(tick);
+            }
+        }
+        
+        /**
+         * Creates spark particle effects randomly every 10 seconds
+         * Simulates sparks from rings grinding against each other
+         */
+        function createSparks() {
+            const now = Date.now();
+            // Create sparks every 10 seconds with some randomness
+            if (now - lastSparkTime > 10000 + Math.random() * 5000) {
+                lastSparkTime = now;
+                
+                const sparkCount = 25 + Math.floor(Math.random() * 15);
+                for (let i = 0; i < sparkCount; i++) {
+                    // Position sparks where rings contact each other
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = 210 + Math.random() * 40; // Between minute and second rings
+                    const x = 300 + radius * Math.cos(angle); // Clock container center
+                    const y = 300 + radius * Math.sin(angle);
+                    
+                    // Create yellowish spark particle
+                    const spark = document.createElement('div');
+                    spark.className = 'spark';
+                    spark.style.width = `${Math.random() * 6 + 3}px`;
+                    spark.style.height = spark.style.width;
+                    spark.style.left = `${x}px`;
+                    spark.style.top = `${y}px`;
+                    spark.style.backgroundColor = sparkColors[i % sparkColors.length];
+                    
+                    document.querySelector('.clock-container').appendChild(spark);
+                    
+                    // Store spark data for animation
+                    sparks.push({
+                        element: spark,
+                        posX: x,
+                        posY: y,
+                        velocityX: (Math.random() - 0.5) * 7,
+                        velocityY: (Math.random() - 0.5) * 7,
+                        life: 800 + Math.random() * 700,
+                        size: parseFloat(spark.style.width),
+                        opacity: 0.6, // Translucent so not distracting
+                        createdAt: now
+                    });
+                }
+            }
+        }
+        
+        /**
+         * Updates spark particle animations
+         * Makes sparks decay as they spread apart
+         */
+        function updateSparks() {
+            const now = Date.now();
+            
+            for (let i = sparks.length - 1; i >= 0; i--) {
+                const spark = sparks[i];
+                const elapsed = now - spark.createdAt;
+                
+                // Remove expired sparks
+                if (elapsed >= spark.life) {
+                    spark.element.remove();
+                    sparks.splice(i, 1);
+                    continue;
+                }
+                
+                // Update spark position based on velocity
+                spark.posX += spark.velocityX;
+                spark.posY += spark.velocityY;
+                
+                // Apply decay effects (fade and shrink)
+                spark.opacity = 0.6 - (elapsed / spark.life) * 0.6;
+                spark.element.style.opacity = spark.opacity;
+                
+                const size = spark.size * (1 - (elapsed / spark.life) * 0.8);
+                spark.element.style.width = `${size}px`;
+                spark.element.style.height = `${size}px`;
+                
+                // Update position
+                spark.element.style.left = `${spark.posX}px`;
+                spark.element.style.top = `${spark.posY}px`;
+            }
+        }
+        
+        /**
+         * Updates the clock display and ring rotations
+         * Both minute and second rings rotate counter-clockwise
+         * Current time values align at the 3 o'clock indicator position
+         */
+        function updateClock() {
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+            const milliseconds = now.getMilliseconds();
+            
+            // Update hour display in center of innermost ring
+            hourDisplay.textContent = hours.toString().padStart(2, '0');
+            
+            // Minutes ring: rotates counter-clockwise to align current minute at 12 o'clock position
+            // Include seconds for smooth minute transitions (6 degrees per minute, 0.1 degrees per second)
+            const minuteAngle = -(360 / 60) * minutes - (360 / 3600) * seconds + 90;
+            
+            // Seconds ring: rotates counter-clockwise to align current second at 12 o'clock position
+            // Include milliseconds for smooth continuous sweep
+            const secondAngle = -(360 / 60) * seconds - (360 / 60000) * milliseconds + 90;
+            
+            // Apply counter-clockwise rotations
+            minuteRing.style.transform = `translate(-50%, -50%) rotate(${minuteAngle}deg)`;
+            secondRing.style.transform = `translate(-50%, -50%) rotate(${secondAngle}deg)`;
+            
+            // Rotate labels with their respective rings to maintain readability
+            const minuteLabels = document.querySelectorAll('[data-minute-label="true"]');
+            const secondLabels = document.querySelectorAll('[data-second-label="true"]');
+            
+            minuteLabels.forEach(label => {
+                const originalX = parseFloat(label.getAttribute('data-original-x'));
+                const originalY = parseFloat(label.getAttribute('data-original-y'));
+                
+                // Apply counter-rotation to keep labels readable
+                label.style.transform = `translate(-50%, -50%) translate(${originalX}px, ${originalY}px) rotate(${-minuteAngle}deg)`;
+            });
+            
+            secondLabels.forEach(label => {
+                const originalX = parseFloat(label.getAttribute('data-original-x'));
+                const originalY = parseFloat(label.getAttribute('data-original-y'));
+                
+                // Apply counter-rotation to keep labels readable
+                label.style.transform = `translate(-50%, -50%) translate(${originalX}px, ${originalY}px) rotate(${-secondAngle}deg)`;
+            });
+        }
+        
+        /**
+         * Main animation loop
+         * Updates clock, starfield, creates sparks, and animates particles
+         */
+        function animate() {
+            updateStarfield();
+            updateClock();
+            createSparks();
+            updateSparks();
+            requestAnimationFrame(animate);
+        }
+        
+        /**
+         * Initialize all clock components
+         */
+        function init() {
+            initStarfield();
+            createTicks();
+            animate();
+            
+            // Handle window resize - recreate starfield and ticks
+            window.addEventListener('resize', () => {
+                initStarfield();
+                setTimeout(createTicks, 100); // Small delay to ensure layout is complete
+            });
+        }
+        
+        // Start the clock
+        init();
+    </script>
+</body>
+</html>

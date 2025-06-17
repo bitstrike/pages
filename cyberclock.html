@@ -47,7 +47,7 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>T3h Chr0n0m3t3r</title>
+    <title>T3h Chr0n0m0m3t3r</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap">
     <style>
         * {
@@ -65,7 +65,7 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
             font-family: 'Orbitron', sans-serif;
             overflow: hidden;
             position: relative;
-            color: #00FF9F;
+            color: #00FF9F; /* Cyberpunk Green */
         }
         
         .grid-overlay {
@@ -88,7 +88,7 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
             width: 100%;
             height: 100%;
             pointer-events: none;
-            opacity: 0.2;
+            opacity: 0.3;
             z-index: 2;
         }
         
@@ -103,14 +103,13 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
             height: 150%;
             text-shadow: 0 0 10px rgba(0, 255, 159, 0.4);
             animation: slideDown linear infinite;
-            will-change: transform;
         }
         
         .title {
             position: absolute;
             top: 30px;
             text-align: center;
-            color: #7F00FF;
+            color: #7F00FF; /* Vibrant Violet */
             font-size: 3rem;
             letter-spacing: 8px;
             text-shadow: 0 0 20px #7F00FF, 0 0 40px #7F00FF;
@@ -135,14 +134,14 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
             display: flex;
             justify-content: center;
             align-items: center;
-            will-change: transform;
+            transition: transform 0.05s cubic-bezier(0.3, 0, 0.7, 1);
         }
         
         .hour-circle {
             width: 140px;
             height: 140px;
             background: rgba(0, 15, 10, 0.8);
-            border: 3px solid #FF00D4;
+            border: 3px solid #FF00D4; /* Neon Pink */
             box-shadow: 
                 0 0 20px #FF00D4, 
                 inset 0 0 10px #FF00D4;
@@ -167,23 +166,21 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
         .minute-donut {
             width: 340px;
             height: 340px;
-            border-color: #00B8FF;
+            border-color: #00B8FF; /* Electric Blue */
             box-shadow: 
                 0 0 25px rgba(0, 184, 255, 0.9), 
                 inset 0 0 10px rgba(0, 184, 255, 0.7);
             z-index: 14;
-            transform: rotate(90deg);
         }
         
         .second-donut {
             width: 440px;
             height: 440px;
-            border-color: #F2E900;
+            border-color: #F2E900; /* Acid Yellow */
             box-shadow: 
                 0 0 25px rgba(242, 233, 0, 0.7), 
                 inset 0 0 10px rgba(242, 233, 0, 0.5);
             z-index: 13;
-            transform: rotate(90deg);
         }
         
         .ticks {
@@ -228,12 +225,12 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
         }
         
         .minute-num {
-            color: #00B8FF;
+            color: #00B8FF; /* Electric Blue */
             font-size: 18px;
         }
         
         .second-num {
-            color: #F2E900;
+            color: #F2E900; /* Acid Yellow */
             font-size: 14px;
         }
         
@@ -259,7 +256,7 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
             font-size: 28px;
             letter-spacing: 8px;
             text-align: center;
-            text-shadow: 0 0 15px #00FF9F;
+            text-shadow: 0 0 15px #00FF9F; /* Cyberpunk Green */
             background: rgba(0, 15, 22, 0.6);
             padding: 20px 40px;
             border-radius: 10px;
@@ -306,7 +303,7 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
             position: absolute;
             width: 12px;
             height: 12px;
-            background: #00FF9F;
+            background: #00FF9F; /* Cyberpunk Green */
             box-shadow: 0 0 30px #00FF9F;
             transform: translateY(-50%) rotate(45deg);
             top: 50%;
@@ -332,7 +329,7 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
         .corner-tl {
             top: 30px;
             left: 30px;
-            border-color: #FF00D4;
+            border-color: #FF00D4; /* Neon Pink */
             box-shadow: 0 0 30px #FF00D4;
             border-right: none;
             border-bottom: none;
@@ -341,7 +338,7 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
         .corner-tr {
             top: 30px;
             right: 30px;
-            border-color: #7F00FF;
+            border-color: #7F00FF; /* Vibrant Violet */
             box-shadow: 0 0 30px #7F00FF;
             border-left: none;
             border-bottom: none;
@@ -350,7 +347,7 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
         .corner-bl {
             bottom: 30px;
             left: 30px;
-            border-color: #00B8FF;
+            border-color: #00B8FF; /* Electric Blue */
             box-shadow: 0 0 30px #00B8FF;
             border-right: none;
             border-top: none;
@@ -359,7 +356,7 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
         .corner-br {
             bottom: 30px;
             right: 30px;
-            border-color: #F2E900;
+            border-color: #F2E900; /* Acid Yellow */
             box-shadow: 0 0 30px #F2E900;
             border-left: none;
             border-top: none;
@@ -378,7 +375,6 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
         
         .line {
             position: absolute;
-            will-change: transform;
         }
         
         .top-line {
@@ -440,10 +436,24 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
         .spark {
             position: absolute;
             border-radius: 50%;
-            background: #FFFF73;
+            background: #FFFF73; /* Light yellowish color for sparks */
             box-shadow: 0 0 10px #FFFF73, 0 0 20px #FFFF73;
             transform: translate(-50%, -50%);
-            will-change: transform, opacity;
+        }
+        
+        @keyframes sparkAnimation {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            80% {
+                opacity: 0.6;
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(4);
+                filter: blur(10px);
+            }
         }
         
         @keyframes slideDown {
@@ -489,7 +499,7 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            // DOM elements
+            // DOM elements initialization
             const clockElements = {
                 hourDisplay: document.querySelector('.hour-display'),
                 minuteTicks: document.getElementById('minute-ticks'),
@@ -501,27 +511,27 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
                 secondDonut: document.querySelector('.second-donut')
             };
 
-            // Time tracking
+            // Time tracking variables
+            let lastParticleTime = 0;
             let lastRandomSpark = Date.now();
-            let lastSecond = -1;
-            let lastMinute = -1;
-            let frameId;
+            let lastSecondRotation = 0;      // for tracking direction of rotation (wrapping)
+            let lastMinuteRotation = 0;      // for tracking direction of rotation (wrapping)
             
-            // Reduce matrix tracks for better performance
+            // Matrix rain effect for background
             function createMatrixEffect() {
                 const chars = "01!@$%&*ÑæÆØPÊƒÜÖç";
-                const trackCount = Math.min(Math.floor(window.innerWidth / 40), 30); // Limit tracks
+                const trackCount = Math.floor(window.innerWidth / 32);
                 
                 for(let i = 0; i < trackCount; i++) {
                     const track = document.createElement('div');
                     track.className = 'matrix-track';
-                    track.style.left = (i * 40) + 'px';
+                    track.style.left = (i * 32) + 'px';
                     track.style.animation = `slideDown ${Math.random()*20 + 50}s linear infinite`;
                     track.style.animationDelay = Math.random() * 30 + 's';
                     
-                    // Shorter content for better performance
+                    // Create content for rain column
                     let content = '';
-                    const length = 50; // Reduced from 100
+                    const length = 100;
                     for(let j = 0; j < length; j++) {
                         content += (Math.random() > 0.15) ? 
                             chars.charAt(Math.floor(Math.random() * chars.length)) : ' ';
@@ -531,29 +541,28 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
                 }
             }
 
-            // Create tick marks
+            // Create circular tick marks for minutes and seconds
             function createClockMarkings(container, options) {
-                const fragment = document.createDocumentFragment();
-                const padding = 5;
-                
+                var padding = 5;
                 for (let i = 0; i < 60; i++) {
+                    // For major ticks (every 5 units) create numbers and ticks
                     const isMajor = i % 5 === 0;
-                    
                     if (isMajor) {
                         const num = document.createElement('div');
                         num.className = `number ${options.numberClass}`;
-                        num.textContent = i.toString().padStart(2, '0');
-                        num.style.top = (options.inset + padding) + 'px';
-                        num.style.left = '50%';
-                        num.style.transform = 'translateX(-50%)';
+                        num.textContent = i.toString().padStart(2, '0'); // start with 00
+                        num.style.top = (options.inset + padding) + 'px';          // 12px
+                        num.style.left = '50%';                        
+                        num.style.transform = 'translateX(-50%)';   
                         
                         const numContainer = document.createElement('div');
                         numContainer.className = 'tick-container';
                         numContainer.style.transform = `rotate(${i * 6}deg)`;
                         numContainer.appendChild(num);
-                        fragment.appendChild(numContainer);
+                        container.appendChild(numContainer);
                     }
                     
+                    // Create the actual tick marks
                     const tick = document.createElement('div');
                     tick.className = `tick ${options.tickClass} ${!isMajor ? 'minor' : ''}`;
                     tick.style.top = '0';
@@ -563,54 +572,60 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
                     tickContainer.className = 'tick-container';
                     tickContainer.style.transform = `rotate(${i * 6}deg)`;
                     tickContainer.appendChild(tick);
-                    fragment.appendChild(tickContainer);
+                    container.appendChild(tickContainer);
                 }
-                
-                container.appendChild(fragment);
             }
 
-            // Optimized spark creation
+            // Create spark effect at a specific angle around the clock
             function createSpark(angle) {
+                // Positioning parameters
                 const centerX = 240;
                 const centerY = 240;
                 const secondRadius = 220;
                 
+                // Calculate spawn position
                 const radian = angle * Math.PI / 180;
                 const startX = centerX + secondRadius * Math.cos(radian);
                 const startY = centerY + secondRadius * Math.sin(radian);
                 
+                // Create spark container for this animation
                 const sparkGroup = document.createElement('div');
+                sparkGroup.className = 'spark-group';
                 sparkGroup.style.position = 'absolute';
                 sparkGroup.style.left = startX + 'px';
                 sparkGroup.style.top = startY + 'px';
                 clockElements.sparkOverlay.appendChild(sparkGroup);
                 
-                // Reduced particle count for better performance
-                const count = Math.floor(Math.random() * 4) + 6; // Reduced from 10-15
+                // Generate 10-15 spark particles with random properties
+                const count = Math.floor(Math.random() * 6) + 10;
                 for (let i = 0; i < count; i++) {
-                    const size = Math.random() * 3 + 2;
+                    const size = Math.random() * 4 + 2;
                     const spark = document.createElement('div');
                     spark.className = 'spark';
                     spark.style.width = `${size}px`;
                     spark.style.height = `${size}px`;
                     spark.style.opacity = (Math.random() * 0.6 + 0.4).toFixed(2);
                     
-                    spark.style.left = `${Math.random() * 40 - 20}px`; // Reduced spread
-                    spark.style.top = `${Math.random() * 40 - 20}px`;
+                    // Set random starting position variations
+                    spark.style.left = `${Math.random() * 60 - 30}px`;
+                    spark.style.top = `${Math.random() * 60 - 30}px`;
                     
-                    const animDist = Math.random() * 40 + 20; // Reduced distance
+                    // Create random animation parameters
+                    const animDist = Math.random() * 60 + 30;
                     const animAngle = Math.random() * Math.PI * 2;
                     const endX = Math.cos(animAngle) * animDist;
                     const endY = Math.sin(animAngle) * animDist;
                     
+                    // Apply spark animation
                     const anim = spark.animate([
-                        { transform: 'translate(0, 0)', opacity: spark.style.opacity },
-                        { transform: `translate(${endX}px, ${endY}px)`, opacity: '0' }
+                        { transform: 'translate(0, 0)' },
+                        { transform: `translate(${endX}px, ${endY}px)` }
                     ], {
-                        duration: Math.random() * 400 + 600, // Shorter duration
+                        duration: Math.random() * 500 + 800,
                         easing: 'ease-out'
                     });
                     
+                    // Spark group management
                     sparkGroup.appendChild(spark);
                     anim.onfinish = () => {
                         spark.remove();
@@ -620,22 +635,33 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
                     };
                 }
                 
+                // Remove spark group if no particles remain (cleanup)
                 setTimeout(() => {
-                    if (sparkGroup.parentNode) sparkGroup.remove();
-                }, 1200); // Reduced cleanup time
+                    sparkGroup.remove();
+                }, 1500);
             }
 
-            // Throttled spark generation
+            // Timer-based spark generator
             function triggerRandomSparks() {
                 const currentTime = Date.now();
-                if (currentTime - lastRandomSpark > Math.random() * 6000 + 10000) { // Less frequent
+                // Generate a spark every 8-12 seconds
+                if (currentTime - lastRandomSpark > Math.random() * 4000 + 8000) {
                     lastRandomSpark = currentTime;
                     const angle = Math.random() * 360;
                     createSpark(angle);
                 }
             }
 
-            // Optimized clock update
+            function rotationFix(rawRotation, lastRotation) {
+                const diff = rawRotation - lastRotation;
+                
+                if (diff < -180) return rawRotation + 360;
+                if (diff > 180) return rawRotation - 360;
+                
+                return rawRotation;
+            }
+
+            // Update the clock hands and time displays
             function updateClock() {
                 const now = new Date();
                 const hours = now.getHours();
@@ -643,36 +669,37 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
                 const seconds = now.getSeconds();
                 const milliseconds = now.getMilliseconds();
                 
-                // Only update elements when values change
+                // Convert to 12-hour display
                 const displayHours = hours % 12 || 12;
-                if (displayHours !== parseInt(clockElements.hourDisplay.textContent)) {
-                    clockElements.hourDisplay.textContent = displayHours.toString().padStart(2, '0');
-                }
+                clockElements.hourDisplay.textContent = displayHours.toString().padStart(2, '0');
 
-                // Smooth rotation calculations
-                const minuteRotation = 90 - (minutes * 6 + seconds * 0.1);
-                const secondRotation = 90 - (seconds * 6 + milliseconds * 0.006);
+                // Calculate raw rotations
+                const rawMinuteRotation = 90 - (minutes * 6 + seconds * 0.1);
+                const rawSecondRotation = 90 - (seconds * 6 + milliseconds * 0.006);
+    
+                // Apply rotation fix to both hands
+                const smoothMinuteRotation = rotationFix(rawMinuteRotation, lastMinuteRotation);
+                const smoothSecondRotation = rotationFix(rawSecondRotation, lastSecondRotation);
+    
                 
-                // Use transform3d for hardware acceleration
-                clockElements.minuteDonut.style.transform = `rotate3d(0,0,1,${minuteRotation}deg)`;
-                clockElements.secondDonut.style.transform = `rotate3d(0,0,1,${secondRotation}deg)`;
+                // Apply transforms
+                clockElements.minuteDonut.style.transform = `rotate(${smoothMinuteRotation}deg)`;
+                clockElements.secondDonut.style.transform = `rotate(${smoothSecondRotation}deg)`;
                 
-                // Update digital clock only when seconds change
-                if (seconds !== lastSecond) {
-                    clockElements.digitalClock.textContent = 
-                        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                    lastSecond = seconds;
-                }
+                // Update digital clock
+                clockElements.digitalClock.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
                 
-                // Throttled spark generation
-                if (Math.random() < 0.01) { // 1% chance per frame
-                    triggerRandomSparks();
-                }
+                // Trigger occasional sparks
+                triggerRandomSparks();
+                
+                // Update last rotation for next frame
+                lastSecondRotation = smoothSecondRotation;
+                lastMinuteRotation = smoothMinuteRotation;
 
-                frameId = requestAnimationFrame(updateClock);
+                // Continue animation loop
+                requestAnimationFrame(updateClock);
             }
-
-            // Initialize
+            // Initialize the clock
             function init() {
                 createClockMarkings(clockElements.minuteTicks, {
                     numberClass: 'minute-num',
@@ -692,13 +719,10 @@ Vivid Violet	#7F00FF	Classic vivid violet, great for neon lines
                 updateClock();
             }
 
-            // Cleanup on page unload
-            window.addEventListener('beforeunload', () => {
-                if (frameId) cancelAnimationFrame(frameId);
-            });
-
+            // Start the clock
             init();
         });
     </script>
 </body>
 </html>
+
