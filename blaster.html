@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Space Blaster</title>
+    <title>Spaz Blaster</title>
     <style>
         * {
             margin: 0;
@@ -231,7 +231,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 8, 20, 0.95);
+            background: transparent;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -336,7 +336,7 @@
 <body>
     <div id="gameContainer">
         <div id="startScreen">
-            <h1>BLASTER</h1>
+            <h1>SPAZ BLASTER</h1>
             <h2>SELECT YOUR RANK</h2>
             <div class="difficulty-buttons">
                 <div>
@@ -981,8 +981,8 @@
                 updateSoundIndicator();
             }
             
-            // 'p' key to toggle pause
-            if (e.key === 'p' || e.key === 'P') {
+            // 'p' key or ESC to toggle pause
+            if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
                 game.isPaused = !game.isPaused;
                 updatePauseDisplay();
             }
@@ -1927,7 +1927,7 @@
                         obs.destroyed = true;
                         lasers.splice(j, 1);
                         // Award more points for smaller obstacles
-                        const obstaclePoints = 20 + (CONSTANTS.OBSTACLE_MAX_SIZE - obs.width) / 2;
+                        const obstaclePoints = Math.round(20 + (CONSTANTS.OBSTACLE_MAX_SIZE - obs.width) / 2);
                         game.score += obstaclePoints;
                         updateScore();
                         playExplosion();
@@ -2643,14 +2643,20 @@
         
         // Game loop
         function gameLoop(currentTime) {
-            if (!game.started) {
-                requestAnimationFrame(gameLoop);
-                return;
-            }
-            
             if (!lastTime) lastTime = currentTime;
             const deltaTime = (currentTime - lastTime) / CONSTANTS.TARGET_FRAME_TIME;
             lastTime = currentTime;
+            
+            // Run demo mode if game hasn't started yet
+            if (!game.started) {
+                if (!game.demoMode) {
+                    startDemoMode();
+                }
+                update(deltaTime);
+                draw();
+                requestAnimationFrame(gameLoop);
+                return;
+            }
             
             update(deltaTime);
             draw();
@@ -2670,7 +2676,67 @@
         document.getElementById('startButton').addEventListener('click', function() {
             if (!game.difficulty) return;
             
+            // Cancel demo mode and reset game state
+            game.demoMode = false;
+            game.isGameOver = false;
+            game.score = 0;
+            game.level = 1;
+            game.levelElapsedMs = 0;
+            game.respawnTimer = 0;
+            game.isDocked = false;
+            game.dockingTimer = 0;
+            game.countdownActive = false;
+            game.dualShotActive = false;
+            game.dualShotTimer = 0;
+            game.powerUpSpawned = false;
+            game.soundEnabled = true;
+            game.bombCount = 0;
+            game.bombPowerUpTimer = 0;
+            game.nextCannonSpawnInterval = 0;
+            game.extraLivesAwarded = [];
+            game.gameOverTimer = 0;
+            
+            // Apply difficulty settings
             applyDifficulty();
+            
+            // Reset ship
+            ship.x = CONSTANTS.SHIP_START_X;
+            ship.y = CONSTANTS.SHIP_START_Y;
+            ship.vx = 0;
+            ship.vy = 0;
+            ship.timeSinceLastDamage = 0;
+            ship.shieldsFullSoundPlayed = true;
+            ship.invulnerable = false;
+            ship.invulnerabilityTimer = 0;
+            
+            // Clear all entities
+            lasers.length = 0;
+            obstacles.length = 0;
+            powerUps.length = 0;
+            bombPowerUps.length = 0;
+            bombs.length = 0;
+            cannons.length = 0;
+            enemyLasers.length = 0;
+            
+            // Reset station
+            station.active = false;
+            station.isVisible = false;
+            
+            // Reset spawn timers
+            obstacleSpawnTimer = 0;
+            cannonSpawnTimer = 0;
+            
+            // Reset terrain
+            generateTerrain();
+            
+            // Hide overlays
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('gameOver').style.opacity = '1';
+            document.getElementById('levelComplete').style.display = 'none';
+            document.getElementById('dockingHint').style.display = 'none';
+            document.getElementById('countdown').style.display = 'none';
+            
+            // Start game
             game.started = true;
             document.getElementById('startScreen').classList.add('hidden');
             
@@ -2680,6 +2746,7 @@
             updateShields();
             updateSoundIndicator();
             updateLives();
+            updateBombCount();
         });
         
         // New game button handler
