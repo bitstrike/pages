@@ -355,6 +355,130 @@
             }
         };
         
+        // Visual Theme Palettes
+        const THEME_PALETTES = [
+            {
+                name: 'desert',
+                asteroidPalette: {
+                    baseHue: 30,        // Orange-brown
+                    hueVariation: 20,
+                    saturation: [45, 65],
+                    lightness: [40, 55]
+                },
+                terrainFill: { h: 35, s: 55, l: 25 },
+                terrainStroke: { h: 40, s: 60, l: 35 },
+                starTint: { h: 25, s: 80, l: 70 }  // Orange/red stars
+            },
+            {
+                name: 'alien',
+                asteroidPalette: {
+                    baseHue: 280,       // Purple/magenta (cyberpunk)
+                    hueVariation: 30,
+                    saturation: [60, 80],
+                    lightness: [35, 50]
+                },
+                terrainFill: { h: 290, s: 45, l: 20 },
+                terrainStroke: { h: 300, s: 55, l: 30 },
+                starTint: { h: 280, s: 70, l: 75 }  // Purple/pink stars
+            },
+            {
+                name: 'volcanic',
+                asteroidPalette: {
+                    baseHue: 0,         // Red
+                    hueVariation: 15,
+                    saturation: [40, 60],
+                    lightness: [30, 45]
+                },
+                terrainFill: { h: 0, s: 20, l: 18 },
+                terrainStroke: { h: 10, s: 40, l: 25 },
+                starTint: { h: 15, s: 85, l: 65 }  // Red/orange stars
+            },
+            {
+                name: 'stormy',
+                asteroidPalette: {
+                    baseHue: 210,       // Blue
+                    hueVariation: 25,
+                    saturation: [35, 55],
+                    lightness: [35, 50]
+                },
+                terrainFill: { h: 215, s: 30, l: 22 },
+                terrainStroke: { h: 220, s: 40, l: 32 },
+                starTint: { h: 200, s: 40, l: 85 }  // Blue/white stars
+            }
+        ];
+        
+        function getCurrentTheme(level) {
+            const themeCount = THEME_PALETTES.length;
+            
+            if (level <= themeCount) {
+                return THEME_PALETTES[level - 1];
+            }
+            
+            // Procedural: interpolate between themes
+            const cyclePosition = (level - 1) % themeCount;
+            const nextCycle = (cyclePosition + 1) % themeCount;
+            const blendFactor = ((level - 1) / themeCount) % 1;
+            
+            const theme1 = THEME_PALETTES[cyclePosition];
+            const theme2 = THEME_PALETTES[nextCycle];
+            
+            return interpolateThemes(theme1, theme2, blendFactor);
+        }
+        
+        function interpolateThemes(theme1, theme2, t) {
+            const lerp = (a, b, t) => a + (b - a) * t;
+            const lerpHue = (h1, h2, t) => {
+                // Handle hue wrapping (0-360)
+                let diff = h2 - h1;
+                if (diff > 180) diff -= 360;
+                if (diff < -180) diff += 360;
+                return (h1 + diff * t + 360) % 360;
+            };
+            
+            return {
+                name: `${theme1.name}-${theme2.name}`,
+                asteroidPalette: {
+                    baseHue: lerpHue(theme1.asteroidPalette.baseHue, theme2.asteroidPalette.baseHue, t),
+                    hueVariation: lerp(theme1.asteroidPalette.hueVariation, theme2.asteroidPalette.hueVariation, t),
+                    saturation: [
+                        lerp(theme1.asteroidPalette.saturation[0], theme2.asteroidPalette.saturation[0], t),
+                        lerp(theme1.asteroidPalette.saturation[1], theme2.asteroidPalette.saturation[1], t)
+                    ],
+                    lightness: [
+                        lerp(theme1.asteroidPalette.lightness[0], theme2.asteroidPalette.lightness[0], t),
+                        lerp(theme1.asteroidPalette.lightness[1], theme2.asteroidPalette.lightness[1], t)
+                    ]
+                },
+                terrainFill: {
+                    h: lerpHue(theme1.terrainFill.h, theme2.terrainFill.h, t),
+                    s: lerp(theme1.terrainFill.s, theme2.terrainFill.s, t),
+                    l: lerp(theme1.terrainFill.l, theme2.terrainFill.l, t)
+                },
+                terrainStroke: {
+                    h: lerpHue(theme1.terrainStroke.h, theme2.terrainStroke.h, t),
+                    s: lerp(theme1.terrainStroke.s, theme2.terrainStroke.s, t),
+                    l: lerp(theme1.terrainStroke.l, theme2.terrainStroke.l, t)
+                },
+                starTint: {
+                    h: lerpHue(theme1.starTint.h, theme2.starTint.h, t),
+                    s: lerp(theme1.starTint.s, theme2.starTint.s, t),
+                    l: lerp(theme1.starTint.l, theme2.starTint.l, t)
+                }
+            };
+        }
+        
+        function generateAsteroidColor(theme) {
+            const palette = theme.asteroidPalette;
+            const hue = palette.baseHue + (Math.random() - 0.5) * 2 * palette.hueVariation;
+            const sat = palette.saturation[0] + Math.random() * (palette.saturation[1] - palette.saturation[0]);
+            const light = palette.lightness[0] + Math.random() * (palette.lightness[1] - palette.lightness[0]);
+            
+            const fillColor = `hsl(${hue}, ${sat}%, ${light}%)`;
+            const strokeColor = `hsl(${hue}, ${sat + 10}%, ${light - 10}%)`;
+            
+            return { fillColor, strokeColor };
+        }
+        
         // Audio context for sound effects
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const dockingStationAudio = document.getElementById('dockingStationSound');
@@ -708,12 +832,18 @@
             const size = CONSTANTS.OBSTACLE_MIN_SIZE + Math.random() * (CONSTANTS.OBSTACLE_MAX_SIZE - CONSTANTS.OBSTACLE_MIN_SIZE);
             // Spawn only in the safe area above terrain (leaving margin)
             const safeTopArea = canvas.height - CONSTANTS.TERRAIN_SAFE_TOP_AREA;
+            
+            const theme = getCurrentTheme(game.level);
+            const colors = generateAsteroidColor(theme);
+            
             obstacles.push({
                 x: canvas.width,
                 y: 50 + Math.random() * safeTopArea,
                 width: size,
                 height: size,
-                destroyed: false
+                destroyed: false,
+                fillColor: colors.fillColor,
+                strokeColor: colors.strokeColor
             });
         }
         
@@ -874,7 +1004,8 @@
                 stars.push({
                     x: Math.random() * canvas.width,
                     y: Math.random() * canvas.height,
-                    size: (i % 3) * 0.5 + 0.5
+                    size: (i % 3) * 0.5 + 0.5,
+                    brightness: 0.7 + Math.random() * 0.3 // Vary brightness
                 });
             }
         }
@@ -1537,19 +1668,31 @@
         
         // Draw function
         function draw() {
+            const theme = getCurrentTheme(game.level);
+            
             // Clear canvas
             ctx.fillStyle = '#000814';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Draw stars background with slow parallax scrolling
-            ctx.fillStyle = '#fff';
+            // Draw stars background with theme-based tinting
             for (let star of stars) {
+                const tint = theme.starTint;
+                const alpha = star.brightness;
+                ctx.fillStyle = `hsla(${tint.h}, ${tint.s}%, ${tint.l}%, ${alpha})`;
                 ctx.fillRect(star.x, star.y, star.size, star.size);
             }
             
-            // Draw terrain
-            ctx.fillStyle = '#1a4d2e';
-            ctx.strokeStyle = '#2d8659';
+            // Draw terrain with theme colors and gradient
+            const terrainFill = theme.terrainFill;
+            const terrainStroke = theme.terrainStroke;
+            
+            // Create gradient for terrain
+            const gradient = ctx.createLinearGradient(0, canvas.height - 200, 0, canvas.height);
+            gradient.addColorStop(0, `hsl(${terrainFill.h}, ${terrainFill.s}%, ${terrainFill.l}%)`);
+            gradient.addColorStop(1, `hsl(${terrainFill.h}, ${terrainFill.s - 10}%, ${terrainFill.l - 8}%)`);
+            
+            ctx.fillStyle = gradient;
+            ctx.strokeStyle = `hsl(${terrainStroke.h}, ${terrainStroke.s}%, ${terrainStroke.l}%)`;
             ctx.lineWidth = 2;
             
             ctx.beginPath();
@@ -1569,8 +1712,8 @@
             for (let obs of obstacles) {
                 if (!obs.destroyed) {
                     // Draw asteroid-like obstacle with irregular round shape
-                    ctx.fillStyle = '#8b4513';
-                    ctx.strokeStyle = '#654321';
+                    ctx.fillStyle = obs.fillColor;
+                    ctx.strokeStyle = obs.strokeColor;
                     ctx.lineWidth = 2;
                     
                     ctx.beginPath();
@@ -1594,8 +1737,8 @@
                     ctx.fill();
                     ctx.stroke();
                     
-                    // Add crater details for more asteroid-like appearance
-                    ctx.fillStyle = '#654321';
+                    // Add crater details for more asteroid-like appearance (darker version of stroke color)
+                    ctx.fillStyle = obs.strokeColor;
                     const craterCount = 2 + Math.floor(obs.width / 15);
                     for (let i = 0; i < craterCount; i++) {
                         const craterAngle = (i / craterCount) * Math.PI * 2 + obs.width;
