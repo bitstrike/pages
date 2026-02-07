@@ -219,6 +219,141 @@
         canvas.width = 1200;
         canvas.height = 600;
         
+        // Game Constants
+        const CONSTANTS = {
+            // Frame rate
+            TARGET_FPS: 60,
+            TARGET_FRAME_TIME: 1000 / 60, // 16.67ms
+            
+            // Canvas
+            CANVAS_WIDTH: 1200,
+            CANVAS_HEIGHT: 600,
+            
+            // Ship
+            SHIP_WIDTH: 40,
+            SHIP_HEIGHT: 20,
+            SHIP_MAX_SHIELDS: 50,
+            SHIP_SPEED: 5,
+            SHIP_START_X: 200,
+            SHIP_START_Y: 300,
+            
+            // Scroll
+            SCROLL_SPEED: 3, // Fixed across all levels
+            
+            // Lasers
+            PLAYER_LASER_SPEED: 15,
+            PLAYER_LASER_WIDTH: 20,
+            PLAYER_LASER_HEIGHT: 3,
+            ENEMY_LASER_WIDTH: 15,
+            ENEMY_LASER_HEIGHT: 3,
+            
+            // Dual shot
+            DUAL_SHOT_DURATION_FRAMES: 600, // 10 seconds at 60fps
+            DUAL_SHOT_ANGLE: 0.2,
+            DUAL_SHOT_BONUS: 25,
+            
+            // Obstacles
+            OBSTACLE_MIN_SIZE: 20,
+            OBSTACLE_MAX_SIZE: 50,
+            OBSTACLE_SPAWN_INTERVAL_FRAMES: 60, // 1 second
+            OBSTACLE_POINTS: 10,
+            OBSTACLE_DAMAGE: 5,
+            
+            // Power-ups
+            POWERUP_SIZE: 15,
+            POWERUP_SPAWN_FRACTION: 0.5, // Midpoint of level
+            BOMB_POWERUP_SIZE: 12,
+            BOMB_POWERUP_SPAWN_FRACTION: 0.25, // 1/4 point of level
+            BOMB_POWERUP_COUNT: 2,
+            BOMB_POWERUP_BONUS: 25,
+            
+            // Bombs
+            BOMB_SIZE: 8,
+            BOMB_SPEED: 6,
+            BOMB_POINTS: 50,
+            
+            // Cannons
+            CANNON_WIDTH: 30,
+            CANNON_HEIGHT: 40,
+            CANNON_BARREL_LENGTH: 25,
+            CANNON_POINTS: 50,
+            CANNON_BURST_SPREAD_DEGREES: 10,
+            
+            // Station
+            STATION_WIDTH: 150,
+            STATION_HEIGHT: 200,
+            DOCKING_BAY_WIDTH: 50,
+            DOCKING_BAY_HEIGHT: 30,
+            DOCKING_COUNTDOWN_SECONDS: 10,
+            DOCKING_TIMER_FRAMES: 180, // 3 seconds
+            DOCKING_CRITICAL_THRESHOLD: 3, // seconds
+            
+            // Terrain
+            TERRAIN_SEGMENT_WIDTH: 20,
+            TERRAIN_MIN_HEIGHT: 50,
+            TERRAIN_MAX_HEIGHT: 200,
+            TERRAIN_SAFE_TOP_AREA: 250,
+            TERRAIN_COLLISION_DAMAGE: 2,
+            
+            // Stars
+            STAR_COUNT: 100,
+            STAR_PARALLAX_FACTOR: 0.1,
+            
+            // Timers
+            RESPAWN_TIMER_FRAMES: 120, // 2 seconds
+            LEVEL_COMPLETE_TIMER_FRAMES: 180, // 3 seconds
+            
+            // Damage
+            ENEMY_LASER_DAMAGE: 3,
+            
+            // Enemy laser burst
+            ENEMY_BURST_SPREAD_RADIANS: (10 * Math.PI) / 180
+        };
+        
+        // Level Configuration
+        const LEVEL_CONFIG = {
+            1: { 
+                durationSeconds: 30,
+                cannonFireRateSeconds: 2.0,
+                cannonSpawnRateSeconds: 3.0,
+                enemyLaserSpeed: 8,
+                enemyBurstCount: 1,
+                levelCompleteBonus: 100
+            },
+            2: { 
+                durationSeconds: 45,
+                cannonFireRateSeconds: 1.8,
+                cannonSpawnRateSeconds: 2.5,
+                enemyLaserSpeed: 9,
+                enemyBurstCount: 1,
+                levelCompleteBonus: 200
+            },
+            3: { 
+                durationSeconds: 60,
+                cannonFireRateSeconds: 1.5,
+                cannonSpawnRateSeconds: 2.0,
+                enemyLaserSpeed: 10,
+                enemyBurstCount: 1,
+                levelCompleteBonus: 300
+            },
+            4: { 
+                durationSeconds: 75,
+                cannonFireRateSeconds: 1.2,
+                cannonSpawnRateSeconds: 1.8,
+                enemyLaserSpeed: 11,
+                enemyBurstCount: 2,
+                levelCompleteBonus: 400
+            },
+            5: { 
+                durationSeconds: 90,
+                cannonFireRateSeconds: 1.0,
+                cannonSpawnRateSeconds: 1.5,
+                enemyLaserSpeed: 12,
+                enemyBurstCount: 2,
+                levelCompleteBonus: 500
+            }
+        };
+        
         // Audio context for sound effects
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         
@@ -297,8 +432,8 @@
         
         function activateDualShot() {
             game.dualShotActive = true;
-            game.dualShotTimer = 600; // 10 seconds at 60fps
-            game.score += 25; // Bonus points for collecting power-up
+            game.dualShotTimer = CONSTANTS.DUAL_SHOT_DURATION_FRAMES;
+            game.score += CONSTANTS.DUAL_SHOT_BONUS;
             updateScore();
             
             // Show power-up indicator
@@ -324,20 +459,20 @@
         }
         
         // Game state
+        let lastTime = 0;
+        
         const game = {
             score: 0,
-            scrollSpeed: 3,
             terrainOffset: 0,
             isGameOver: false,
             respawnTimer: 0,
             level: 1,
-            levelDistance: 0,
-            levelLength: 3000, // Distance to travel before station appears
+            levelElapsedMs: 0,
+            levelDurationMs: 0,
             isDocked: false,
             dockingTimer: 0,
             countdownActive: false,
-            countdownTime: 10,
-            countdownFrames: 0,
+            countdownMs: 0,
             dualShotActive: false,
             dualShotTimer: 0,
             powerUpSpawned: false,
@@ -349,14 +484,14 @@
         
         // Ship
         const ship = {
-            x: 200,
-            y: 300,
-            width: 40,
-            height: 20,
+            x: CONSTANTS.SHIP_START_X,
+            y: CONSTANTS.SHIP_START_Y,
+            width: CONSTANTS.SHIP_WIDTH,
+            height: CONSTANTS.SHIP_HEIGHT,
             vx: 0,
             vy: 0,
-            shields: 50,
-            maxShields: 50,
+            shields: CONSTANTS.SHIP_MAX_SHIELDS,
+            maxShields: CONSTANTS.SHIP_MAX_SHIELDS,
             acceleration: 0,
             lives: 3
         };
@@ -406,27 +541,27 @@
                 lasers.push({
                     x: ship.x + ship.width,
                     y: ship.y + ship.height / 2,
-                    width: 20,
-                    height: 3,
-                    speed: 15,
-                    angle: -0.2 // Upward angle
+                    width: CONSTANTS.PLAYER_LASER_WIDTH,
+                    height: CONSTANTS.PLAYER_LASER_HEIGHT,
+                    speed: CONSTANTS.PLAYER_LASER_SPEED,
+                    angle: -CONSTANTS.DUAL_SHOT_ANGLE
                 });
                 lasers.push({
                     x: ship.x + ship.width,
                     y: ship.y + ship.height / 2,
-                    width: 20,
-                    height: 3,
-                    speed: 15,
-                    angle: 0.2 // Downward angle
+                    width: CONSTANTS.PLAYER_LASER_WIDTH,
+                    height: CONSTANTS.PLAYER_LASER_HEIGHT,
+                    speed: CONSTANTS.PLAYER_LASER_SPEED,
+                    angle: CONSTANTS.DUAL_SHOT_ANGLE
                 });
             } else {
                 // Single straight laser
                 lasers.push({
                     x: ship.x + ship.width,
                     y: ship.y + ship.height / 2,
-                    width: 20,
-                    height: 3,
-                    speed: 15,
+                    width: CONSTANTS.PLAYER_LASER_WIDTH,
+                    height: CONSTANTS.PLAYER_LASER_HEIGHT,
+                    speed: CONSTANTS.PLAYER_LASER_SPEED,
                     angle: 0
                 });
             }
@@ -451,15 +586,24 @@
             // Find terrain height at a random x position
             const spawnX = canvas.width + 50; // Start off-screen right
             
+            const config = getCurrentLevelConfig();
+            
             cannons.push({
                 x: spawnX,
                 y: 0, // Will be set based on terrain
-                width: 30,
-                height: 40,
+                width: CONSTANTS.CANNON_WIDTH,
+                height: CONSTANTS.CANNON_HEIGHT,
                 barrelAngle: 0,
-                fireTimer: 120, // Fire every 2 seconds (120 frames at 60fps)
+                fireTimer: config.cannonFireRateSeconds * CONSTANTS.TARGET_FPS,
                 destroyed: false
             });
+        }
+        
+        function getCurrentLevelConfig() {
+            // Get config for current level, or use highest level config if beyond defined levels
+            const maxLevel = Math.max(...Object.keys(LEVEL_CONFIG).map(Number));
+            const level = Math.min(game.level, maxLevel);
+            return LEVEL_CONFIG[level];
         }
         
         function getTerrainHeightAt(x) {
@@ -483,17 +627,19 @@
             const dy = ship.y + ship.height / 2 - cannon.y;
             const baseAngle = Math.atan2(dy, dx);
             
-            // Level 4+: Fire two-shot burst with 10 degree spread
-            if (game.level >= 4) {
-                const spreadAngle = (10 * Math.PI) / 180; // 10 degrees in radians
+            const config = getCurrentLevelConfig();
+            
+            // Level 4+: Fire burst with spread
+            if (config.enemyBurstCount > 1) {
+                const spreadAngle = CONSTANTS.ENEMY_BURST_SPREAD_RADIANS;
                 
                 // First shot - angled up
                 enemyLasers.push({
                     x: cannon.x,
                     y: cannon.y - 15,
-                    width: 15,
-                    height: 3,
-                    speed: 8,
+                    width: CONSTANTS.ENEMY_LASER_WIDTH,
+                    height: CONSTANTS.ENEMY_LASER_HEIGHT,
+                    speed: config.enemyLaserSpeed,
                     angle: baseAngle - spreadAngle / 2
                 });
                 
@@ -501,19 +647,19 @@
                 enemyLasers.push({
                     x: cannon.x,
                     y: cannon.y - 15,
-                    width: 15,
-                    height: 3,
-                    speed: 8,
+                    width: CONSTANTS.ENEMY_LASER_WIDTH,
+                    height: CONSTANTS.ENEMY_LASER_HEIGHT,
+                    speed: config.enemyLaserSpeed,
                     angle: baseAngle + spreadAngle / 2
                 });
             } else {
-                // Level 3: Single shot
+                // Single shot
                 enemyLasers.push({
                     x: cannon.x,
                     y: cannon.y - 15,
-                    width: 15,
-                    height: 3,
-                    speed: 8,
+                    width: CONSTANTS.ENEMY_LASER_WIDTH,
+                    height: CONSTANTS.ENEMY_LASER_HEIGHT,
+                    speed: config.enemyLaserSpeed,
                     angle: baseAngle
                 });
             }
@@ -538,12 +684,12 @@
         }
         
         function spawnObstacle() {
-            const size = 20 + Math.random() * 30;
+            const size = CONSTANTS.OBSTACLE_MIN_SIZE + Math.random() * (CONSTANTS.OBSTACLE_MAX_SIZE - CONSTANTS.OBSTACLE_MIN_SIZE);
             // Spawn only in the safe area above terrain (leaving margin)
-            const safeTopArea = canvas.height - 250; // Terrain is roughly at bottom 200px
+            const safeTopArea = canvas.height - CONSTANTS.TERRAIN_SAFE_TOP_AREA;
             obstacles.push({
                 x: canvas.width,
-                y: 50 + Math.random() * safeTopArea, // Keep away from top and terrain
+                y: 50 + Math.random() * safeTopArea,
                 width: size,
                 height: size,
                 destroyed: false
@@ -552,11 +698,11 @@
         
         function spawnPowerUp() {
             // Spawn in safe area above terrain
-            const safeTopArea = canvas.height - 250;
+            const safeTopArea = canvas.height - CONSTANTS.TERRAIN_SAFE_TOP_AREA;
             powerUps.push({
                 x: canvas.width,
                 y: 50 + Math.random() * safeTopArea,
-                size: 15,
+                size: CONSTANTS.POWERUP_SIZE,
                 destroyed: false,
                 rotation: 0
             });
@@ -564,11 +710,11 @@
         
         function spawnBombPowerUp() {
             // Spawn red dot power-up in safe area
-            const safeTopArea = canvas.height - 250;
+            const safeTopArea = canvas.height - CONSTANTS.TERRAIN_SAFE_TOP_AREA;
             bombPowerUps.push({
                 x: canvas.width,
                 y: 50 + Math.random() * safeTopArea,
-                size: 12,
+                size: CONSTANTS.BOMB_POWERUP_SIZE,
                 destroyed: false
             });
         }
@@ -600,8 +746,8 @@
             bombs.push({
                 x: ship.x + ship.width,
                 y: ship.y + ship.height / 2,
-                size: 8,
-                speed: 6,
+                size: CONSTANTS.BOMB_SIZE,
+                speed: CONSTANTS.BOMB_SPEED,
                 target: nearestTarget,
                 vx: 0,
                 vy: 0
@@ -630,13 +776,13 @@
         const station = {
             x: 0,
             y: 0,
-            width: 150,
-            height: 200,
+            width: CONSTANTS.STATION_WIDTH,
+            height: CONSTANTS.STATION_HEIGHT,
             dockingBay: {
                 x: 0,
                 y: 0,
-                width: 50,
-                height: 30
+                width: CONSTANTS.DOCKING_BAY_WIDTH,
+                height: CONSTANTS.DOCKING_BAY_HEIGHT
             },
             active: false,
             isVisible: false
@@ -690,7 +836,7 @@
         // Starfield
         const stars = [];
         function initStars() {
-            for (let i = 0; i < 100; i++) {
+            for (let i = 0; i < CONSTANTS.STAR_COUNT; i++) {
                 stars.push({
                     x: Math.random() * canvas.width,
                     y: Math.random() * canvas.height,
@@ -703,7 +849,7 @@
         // Terrain generation using Perlin-like noise
         const terrain = {
             points: [],
-            segmentWidth: 20
+            segmentWidth: CONSTANTS.TERRAIN_SEGMENT_WIDTH
         };
         
         function generateTerrain() {
@@ -713,7 +859,7 @@
             for (let x = 0; x < canvas.width + 200; x += terrain.segmentWidth) {
                 // Random walk with smoothing
                 y += (Math.random() - 0.5) * 40;
-                y = Math.max(canvas.height - 200, Math.min(canvas.height - 50, y));
+                y = Math.max(canvas.height - CONSTANTS.TERRAIN_MAX_HEIGHT, Math.min(canvas.height - CONSTANTS.TERRAIN_MIN_HEIGHT, y));
                 
                 terrain.points.push({ x, y });
             }
@@ -752,32 +898,32 @@
         }
         
         // Update function
-        function update() {
+        function update(deltaTime) {
             if (game.isPaused) {
                 return; // Don't update anything when paused
             }
             
             if (game.isGameOver) {
-                game.respawnTimer++;
-                if (game.respawnTimer > 120) { // 2 seconds
+                game.respawnTimer += deltaTime;
+                if (game.respawnTimer > CONSTANTS.RESPAWN_TIMER_FRAMES) {
                     respawnShip();
                 }
                 return;
             }
             
             if (game.isDocked) {
-                game.dockingTimer++;
-                if (game.dockingTimer > 180) { // 3 seconds
+                game.dockingTimer += deltaTime;
+                if (game.dockingTimer > CONSTANTS.DOCKING_TIMER_FRAMES) {
                     nextLevel();
                 }
                 return;
             }
             
-            // Track level distance
-            game.levelDistance += game.scrollSpeed;
+            // Track level elapsed time
+            game.levelElapsedMs += (deltaTime / CONSTANTS.TARGET_FPS) * 1000;
             
-            // Spawn station when level distance reached
-            if (game.levelDistance >= game.levelLength && !station.active) {
+            // Spawn station when level duration reached
+            if (game.levelElapsedMs >= game.levelDurationMs && !station.active) {
                 spawnStation();
                 document.getElementById('dockingHint').style.display = 'block';
             }
@@ -787,18 +933,12 @@
             
             // Update countdown timer
             if (game.countdownActive) {
-                game.countdownFrames++;
+                game.countdownMs -= (deltaTime / CONSTANTS.TARGET_FPS) * 1000;
+                updateCountdownDisplay();
                 
-                // 60 frames per second, so 60 frames = 1 second
-                if (game.countdownFrames >= 60) {
-                    game.countdownFrames = 0;
-                    game.countdownTime--;
-                    updateCountdownDisplay();
-                    
-                    // Timer ran out!
-                    if (game.countdownTime <= 0) {
-                        timeoutDocking();
-                    }
+                // Timer ran out!
+                if (game.countdownMs <= 0) {
+                    timeoutDocking();
                 }
             }
             
@@ -808,29 +948,28 @@
             }
             
             // Ship movement
-            const speed = 5;
             ship.vx = 0;
             ship.vy = 0;
             ship.acceleration = 0;
             
             if (keys['ArrowLeft']) {
-                ship.vx = -speed;
+                ship.vx = -CONSTANTS.SHIP_SPEED;
             }
             if (keys['ArrowRight']) {
-                ship.vx = speed;
+                ship.vx = CONSTANTS.SHIP_SPEED;
                 ship.acceleration = 1;
             }
             if (keys['ArrowUp']) {
-                ship.vy = -speed;
+                ship.vy = -CONSTANTS.SHIP_SPEED;
             }
             if (keys['ArrowDown']) {
-                ship.vy = speed;
+                ship.vy = CONSTANTS.SHIP_SPEED;
             }
             
             // Update ship position
             const oldY = ship.y;
-            ship.x += ship.vx;
-            ship.y += ship.vy;
+            ship.x += ship.vx * deltaTime;
+            ship.y += ship.vy * deltaTime;
             
             // Boundaries
             ship.x = Math.max(0, Math.min(canvas.width - ship.width, ship.x));
@@ -846,14 +985,14 @@
                 }
                 
                 // Damage shields on terrain collision
-                damageShip(2);
+                damageShip(CONSTANTS.TERRAIN_COLLISION_DAMAGE);
             }
             
             // Update lasers
             for (let i = lasers.length - 1; i >= 0; i--) {
                 const laser = lasers[i];
-                laser.x += laser.speed;
-                laser.y += laser.speed * Math.sin(laser.angle); // Apply angle for fanned shots
+                laser.x += laser.speed * deltaTime;
+                laser.y += laser.speed * Math.sin(laser.angle) * deltaTime;
                 
                 // Remove off-screen lasers
                 if (laser.x > canvas.width || laser.y < 0 || laser.y > canvas.height) {
@@ -863,7 +1002,7 @@
             
             // Update dual-shot timer
             if (game.dualShotActive) {
-                game.dualShotTimer--;
+                game.dualShotTimer -= deltaTime;
                 if (game.dualShotTimer <= 0) {
                     game.dualShotActive = false;
                     document.getElementById('powerUpIndicator').style.display = 'none';
@@ -871,7 +1010,7 @@
             }
             
             // Spawn power-up once per level at midpoint
-            if (!game.powerUpSpawned && game.levelDistance >= game.levelLength / 2) {
+            if (!game.powerUpSpawned && game.levelElapsedMs >= game.levelDurationMs * CONSTANTS.POWERUP_SPAWN_FRACTION) {
                 spawnPowerUp();
                 game.powerUpSpawned = true;
             }
@@ -879,8 +1018,8 @@
             // Update power-ups
             for (let i = powerUps.length - 1; i >= 0; i--) {
                 const powerUp = powerUps[i];
-                powerUp.x -= game.scrollSpeed;
-                powerUp.rotation += 0.05; // Rotate the diamond
+                powerUp.x -= CONSTANTS.SCROLL_SPEED * deltaTime;
+                powerUp.rotation += 0.05 * deltaTime;
                 
                 // Check laser collisions with power-ups
                 for (let j = lasers.length - 1; j >= 0; j--) {
@@ -920,7 +1059,7 @@
             }
             
             // Spawn bomb power-up once per level at 1/4 point (level 4+)
-            if (game.level >= 4 && !game.bombPowerUpSpawned && game.levelDistance >= game.levelLength / 4) {
+            if (game.level >= 4 && !game.bombPowerUpSpawned && game.levelElapsedMs >= game.levelDurationMs * CONSTANTS.BOMB_POWERUP_SPAWN_FRACTION) {
                 spawnBombPowerUp();
                 game.bombPowerUpSpawned = true;
             }
@@ -928,7 +1067,7 @@
             // Update bomb power-ups
             for (let i = bombPowerUps.length - 1; i >= 0; i--) {
                 const bombPU = bombPowerUps[i];
-                bombPU.x -= game.scrollSpeed;
+                bombPU.x -= CONSTANTS.SCROLL_SPEED * deltaTime;
                 
                 // Check laser collisions with bomb power-ups
                 for (let j = lasers.length - 1; j >= 0; j--) {
@@ -941,8 +1080,8 @@
                     if (distance < bombPU.size) {
                         bombPU.destroyed = true;
                         lasers.splice(j, 1);
-                        game.bombCount += 2;
-                        game.score += 25;
+                        game.bombCount += CONSTANTS.BOMB_POWERUP_COUNT;
+                        game.score += CONSTANTS.BOMB_POWERUP_BONUS;
                         updateScore();
                         updateBombCount();
                         
@@ -978,8 +1117,8 @@
                     
                     if (distance < bombPU.size + 15) {
                         bombPU.destroyed = true;
-                        game.bombCount += 2;
-                        game.score += 25;
+                        game.bombCount += CONSTANTS.BOMB_POWERUP_COUNT;
+                        game.score += CONSTANTS.BOMB_POWERUP_BONUS;
                         updateScore();
                         updateBombCount();
                         
@@ -1027,7 +1166,7 @@
                     if (dist < 20) {
                         bomb.target.destroyed = true;
                         bombs.splice(i, 1);
-                        game.score += 50;
+                        game.score += CONSTANTS.BOMB_POINTS;
                         updateScore();
                         playExplosion();
                         continue;
@@ -1038,8 +1177,8 @@
                     bomb.vy = 0;
                 }
                 
-                bomb.x += bomb.vx;
-                bomb.y += bomb.vy;
+                bomb.x += bomb.vx * deltaTime;
+                bomb.y += bomb.vy * deltaTime;
                 
                 // Remove off-screen bombs
                 if (bomb.x < 0 || bomb.x > canvas.width || bomb.y < 0 || bomb.y > canvas.height) {
@@ -1049,11 +1188,14 @@
             
             // Update laser cannons (level 3+)
             if (game.level >= 3) {
-                // Spawn cannon if none active and timer ready
-                cannonSpawnTimer++;
-                const maxCannons = 1; // Only 1 cannon at a time for level 3
+                const config = getCurrentLevelConfig();
                 
-                if (cannons.length < maxCannons && cannonSpawnTimer > 180) { // Every 3 seconds
+                // Spawn cannon if none active and timer ready
+                cannonSpawnTimer += deltaTime;
+                const maxCannons = 1;
+                const spawnInterval = config.cannonSpawnRateSeconds * CONSTANTS.TARGET_FPS;
+                
+                if (cannons.length < maxCannons && cannonSpawnTimer > spawnInterval) {
                     spawnCannon();
                     cannonSpawnTimer = 0;
                 }
@@ -1061,7 +1203,7 @@
                 // Update cannons
                 for (let i = cannons.length - 1; i >= 0; i--) {
                     const cannon = cannons[i];
-                    cannon.x -= game.scrollSpeed;
+                    cannon.x -= CONSTANTS.SCROLL_SPEED * deltaTime;
                     
                     // Update cannon position to match terrain
                     cannon.y = getTerrainHeightAt(cannon.x);
@@ -1072,10 +1214,10 @@
                     cannon.barrelAngle = Math.atan2(dy, dx);
                     
                     // Fire at ship
-                    cannon.fireTimer--;
+                    cannon.fireTimer -= deltaTime;
                     if (cannon.fireTimer <= 0 && !cannon.destroyed) {
                         fireCannonLaser(cannon);
-                        cannon.fireTimer = 120; // Reset to 2 seconds
+                        cannon.fireTimer = config.cannonFireRateSeconds * CONSTANTS.TARGET_FPS;
                     }
                     
                     // Check if player shot the cannon
@@ -1087,7 +1229,7 @@
                             laser.y < cannon.y) {
                             cannon.destroyed = true;
                             lasers.splice(j, 1);
-                            game.score += 50; // Bonus for destroying cannon
+                            game.score += CONSTANTS.CANNON_POINTS;
                             updateScore();
                             playExplosion();
                             break;
@@ -1103,8 +1245,8 @@
                 // Update enemy lasers
                 for (let i = enemyLasers.length - 1; i >= 0; i--) {
                     const eLaser = enemyLasers[i];
-                    eLaser.x += eLaser.speed * Math.cos(eLaser.angle);
-                    eLaser.y += eLaser.speed * Math.sin(eLaser.angle);
+                    eLaser.x += eLaser.speed * Math.cos(eLaser.angle) * deltaTime;
+                    eLaser.y += eLaser.speed * Math.sin(eLaser.angle) * deltaTime;
                     
                     // Check if enemy laser hit ship
                     const distance = Math.sqrt(
@@ -1113,7 +1255,7 @@
                     );
                     
                     if (distance < 15) {
-                        damageShip(3);
+                        damageShip(CONSTANTS.ENEMY_LASER_DAMAGE);
                         enemyLasers.splice(i, 1);
                         continue;
                     }
@@ -1127,22 +1269,22 @@
             }
             
             // Update obstacles
-            obstacleSpawnTimer++;
-            if (obstacleSpawnTimer > 60) { // Spawn every second, continues even with station
+            obstacleSpawnTimer += deltaTime;
+            if (obstacleSpawnTimer > CONSTANTS.OBSTACLE_SPAWN_INTERVAL_FRAMES) {
                 spawnObstacle();
                 obstacleSpawnTimer = 0;
             }
             
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 const obs = obstacles[i];
-                obs.x -= game.scrollSpeed;
+                obs.x -= CONSTANTS.SCROLL_SPEED * deltaTime;
                 
                 // Check laser collisions
                 for (let j = lasers.length - 1; j >= 0; j--) {
                     if (checkCollision(lasers[j], obs)) {
                         obs.destroyed = true;
                         lasers.splice(j, 1);
-                        game.score += 10;
+                        game.score += CONSTANTS.OBSTACLE_POINTS;
                         updateScore();
                         playExplosion();
                         break;
@@ -1152,7 +1294,7 @@
                 // Check ship collision
                 if (!obs.destroyed && checkCollision(ship, obs)) {
                     obs.destroyed = true;
-                    damageShip(5);
+                    damageShip(CONSTANTS.OBSTACLE_DAMAGE);
                     playExplosion();
                 }
                 
@@ -1163,11 +1305,11 @@
             }
             
             // Update terrain scroll
-            game.terrainOffset += game.scrollSpeed;
+            game.terrainOffset += CONSTANTS.SCROLL_SPEED * deltaTime;
             
             // Update stars - scroll slowly to the left
             for (let star of stars) {
-                star.x -= game.scrollSpeed * 0.1; // Stars move at 10% terrain speed
+                star.x -= CONSTANTS.SCROLL_SPEED * CONSTANTS.STAR_PARALLAX_FACTOR * deltaTime;
                 
                 // Wrap around when star goes off left edge
                 if (star.x < 0) {
@@ -1185,7 +1327,7 @@
                 
                 const lastPoint = terrain.points[terrain.points.length - 1];
                 let newY = lastPoint.y + (Math.random() - 0.5) * 40;
-                newY = Math.max(canvas.height - 200, Math.min(canvas.height - 50, newY));
+                newY = Math.max(canvas.height - CONSTANTS.TERRAIN_MAX_HEIGHT, Math.min(canvas.height - CONSTANTS.TERRAIN_MIN_HEIGHT, newY));
                 
                 terrain.points.push({
                     x: lastPoint.x + terrain.segmentWidth,
@@ -1195,7 +1337,7 @@
             
             // Shift all terrain points left
             for (let point of terrain.points) {
-                point.x -= game.scrollSpeed;
+                point.x -= CONSTANTS.SCROLL_SPEED * deltaTime;
             }
         }
         
@@ -1217,8 +1359,8 @@
         
         function respawnShip() {
             ship.shields = ship.maxShields;
-            ship.x = 200;
-            ship.y = 300;
+            ship.x = CONSTANTS.SHIP_START_X;
+            ship.y = CONSTANTS.SHIP_START_Y;
             ship.vx = 0;
             ship.vy = 0;
             game.isGameOver = false;
@@ -1227,6 +1369,8 @@
         }
         
         function completeDocking() {
+            const config = getCurrentLevelConfig();
+            
             game.isDocked = true;
             game.dockingTimer = 0;
             game.countdownActive = false;
@@ -1236,24 +1380,24 @@
             document.getElementById('countdown').style.display = 'none';
             
             // Bonus points for completing level
-            game.score += 100 * game.level;
+            game.score += config.levelCompleteBonus;
             updateScore();
         }
         
         function startCountdown() {
             game.countdownActive = true;
-            game.countdownTime = 10;
-            game.countdownFrames = 0;
+            game.countdownMs = CONSTANTS.DOCKING_COUNTDOWN_SECONDS * 1000;
             updateCountdownDisplay();
             document.getElementById('countdown').style.display = 'block';
         }
         
         function updateCountdownDisplay() {
             const countdownEl = document.getElementById('countdown');
-            countdownEl.textContent = `DOCK IN: ${game.countdownTime}`;
+            const countdownTime = Math.ceil(game.countdownMs / 1000);
+            countdownEl.textContent = `DOCK IN: ${countdownTime}`;
             
             // Make it critical (red) when time is low
-            if (game.countdownTime <= 3) {
+            if (countdownTime <= CONSTANTS.DOCKING_CRITICAL_THRESHOLD) {
                 countdownEl.classList.add('critical');
             } else {
                 countdownEl.classList.remove('critical');
@@ -1267,8 +1411,8 @@
             document.getElementById('dockingHint').style.display = 'none';
             
             // Respawn ship and reset countdown
-            ship.x = 200;
-            ship.y = 300;
+            ship.x = CONSTANTS.SHIP_START_X;
+            ship.y = CONSTANTS.SHIP_START_Y;
             ship.vx = 0;
             ship.vy = 0;
             
@@ -1281,17 +1425,20 @@
         
         function nextLevel() {
             game.level++;
-            game.levelDistance = 0;
+            game.levelElapsedMs = 0;
             game.isDocked = false;
             game.countdownActive = false;
-            game.powerUpSpawned = false; // Reset power-up for next level
-            game.bombPowerUpSpawned = false; // Reset bomb power-up for next level
-            game.scrollSpeed = 3 + (game.level - 1) * 0.5; // Increase difficulty
+            game.powerUpSpawned = false;
+            game.bombPowerUpSpawned = false;
+            
+            // Set level duration from config
+            const config = getCurrentLevelConfig();
+            game.levelDurationMs = config.durationSeconds * 1000;
             
             // Reset ship
             ship.shields = ship.maxShields;
-            ship.x = 200;
-            ship.y = 300;
+            ship.x = CONSTANTS.SHIP_START_X;
+            ship.y = CONSTANTS.SHIP_START_Y;
             ship.vx = 0;
             ship.vy = 0;
             
@@ -1670,17 +1817,27 @@
         }
         
         // Game loop
-        function gameLoop() {
-            update();
+        function gameLoop(currentTime) {
+            if (!lastTime) lastTime = currentTime;
+            const deltaTime = (currentTime - lastTime) / CONSTANTS.TARGET_FRAME_TIME;
+            lastTime = currentTime;
+            
+            update(deltaTime);
             draw();
             requestAnimationFrame(gameLoop);
         }
         
         // Start game
-        updateScore();
-        updateShields();
-        updateSoundIndicator();
-        gameLoop();
+        function initGame() {
+            const config = getCurrentLevelConfig();
+            game.levelDurationMs = config.durationSeconds * 1000;
+            updateScore();
+            updateShields();
+            updateSoundIndicator();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        initGame();
     </script>
 </body>
 </html>
