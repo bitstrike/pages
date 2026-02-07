@@ -261,6 +261,14 @@
             display: flex;
             gap: 30px;
             margin-bottom: 40px;
+            align-items: flex-start;
+        }
+        
+        .difficulty-buttons > div {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
         
         .difficulty-btn {
@@ -275,6 +283,7 @@
             text-shadow: 0 0 10px #0ff;
             transition: all 0.3s;
             border-radius: 8px;
+            width: 100%;
         }
         
         .difficulty-btn:hover {
@@ -295,6 +304,7 @@
             font-size: 14px;
             margin-top: 10px;
             text-align: center;
+            min-height: 40px;
         }
         
         #startButton {
@@ -1916,7 +1926,9 @@
                     if (checkCollision(lasers[j], obs)) {
                         obs.destroyed = true;
                         lasers.splice(j, 1);
-                        game.score += CONSTANTS.OBSTACLE_POINTS;
+                        // Award more points for smaller obstacles
+                        const obstaclePoints = 20 + (CONSTANTS.OBSTACLE_MAX_SIZE - obs.width) / 2;
+                        game.score += obstaclePoints;
                         updateScore();
                         playExplosion();
                         regenerateShieldsFromDestruction();
