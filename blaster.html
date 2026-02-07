@@ -208,6 +208,10 @@
         <div id="hud">
             <div id="topRow">
                 <div id="score" class="hud-item">SCORE: 0</div>
+                <div id="lives" class="hud-item" style="display: flex; align-items: center; gap: 5px;">
+                    <span>LIVES:</span>
+                    <canvas id="livesCanvas" width="120" height="20"></canvas>
+                </div>
                 <div id="level" class="hud-item">LEVEL: 1</div>
             </div>
             <div class="hud-item">
@@ -216,7 +220,7 @@
                     <div id="shieldFill"></div>
                 </div>
             </div>
-            <div id="bombCount" class="hud-item" style="color: #00f; display: none;">BOMBS: 0</div>
+            <div id="bombCount" class="hud-item" style="color: #00d4ff; display: none;">BOMBS: 0</div>
         </div>
         <div id="countdown"></div>
         <div id="powerUpIndicator">◆◆</div>
@@ -235,6 +239,8 @@
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const livesCanvas = document.getElementById('livesCanvas');
+        const livesCtx = livesCanvas.getContext('2d');
         
         // Set canvas size
         canvas.width = 1200;
@@ -299,6 +305,7 @@
             CANNON_BARREL_LENGTH: 25,
             CANNON_POINTS: 50,
             CANNON_BURST_SPREAD_DEGREES: 10,
+            CANNON_SPAWN_VARIATION: 0.3, // ±30% spawn interval variation
             
             // Station
             STATION_WIDTH: 150,
@@ -325,8 +332,16 @@
             STAR_COUNT: 100,
             STAR_PARALLAX_FACTOR: 0.1,
             
-            // Timers
+            // Respawn
             RESPAWN_TIMER_FRAMES: 120, // 2 seconds
+            RESPAWN_INVULNERABILITY_FRAMES: 180, // 3 seconds invulnerability
+            
+            // Lives
+            STARTING_LIVES: 3,
+            MAX_LIVES: 6,
+            EXTRA_LIFE_SCORES: [10000, 25000, 50000, 100000], // Score thresholds for extra lives
+            
+            // Timers
             LEVEL_COMPLETE_TIMER_FRAMES: 180, // 3 seconds
             
             // Damage
@@ -622,6 +637,29 @@
             }
         }
         
+        function playExtraLifeSound() {
+            if (!game.soundEnabled) return;
+            
+            // Play ascending jingle for extra life
+            const notes = [400, 500, 600, 800];
+            for (let i = 0; i < notes.length; i++) {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                const startTime = audioContext.currentTime + i * 0.1;
+                oscillator.frequency.setValueAtTime(notes[i], startTime);
+                
+                gainNode.gain.setValueAtTime(0.2, startTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.15);
+                
+                oscillator.start(startTime);
+                oscillator.stop(startTime + 0.15);
+            }
+        }
+        
         function playSkidSound() {
             if (!game.soundEnabled) return;
             
@@ -704,7 +742,9 @@
             soundEnabled: true,
             isPaused: false,
             bombCount: 0,
-            bombPowerUpTimer: 0
+            bombPowerUpTimer: 0,
+            nextCannonSpawnInterval: 0,
+            extraLivesAwarded: [] // Track which extra life thresholds have been awarded
         };
         
         // Ship
@@ -718,9 +758,11 @@
             shields: CONSTANTS.SHIP_MAX_SHIELDS,
             maxShields: CONSTANTS.SHIP_MAX_SHIELDS,
             acceleration: 0,
-            lives: 3,
+            lives: CONSTANTS.STARTING_LIVES,
             timeSinceLastDamage: 0,
-            shieldsFullSoundPlayed: false
+            shieldsFullSoundPlayed: false,
+            invulnerable: false,
+            invulnerabilityTimer: 0
         };
         
         // Controls
@@ -1194,6 +1236,26 @@
                 completeDocking();
             }
             
+            // Update invulnerability
+            if (ship.invulnerable) {
+                ship.invulnerabilityTimer -= deltaTime;
+                if (ship.invulnerabilityTimer <= 0) {
+                    ship.invulnerable = false;
+                }
+            }
+            
+            // Check for extra lives based on score
+            for (let threshold of CONSTANTS.EXTRA_LIFE_SCORES) {
+                if (game.score >= threshold && !game.extraLivesAwarded.includes(threshold)) {
+                    if (ship.lives < CONSTANTS.MAX_LIVES) {
+                        ship.lives++;
+                        updateLives();
+                        playExtraLifeSound();
+                    }
+                    game.extraLivesAwarded.push(threshold);
+                }
+            }
+            
             // Ship movement
             ship.vx = 0;
             ship.vy = 0;
@@ -1495,11 +1557,18 @@
                 // Spawn cannon if none active and timer ready
                 cannonSpawnTimer += deltaTime;
                 const maxCannons = 1;
-                const spawnInterval = config.cannonSpawnRateSeconds * CONSTANTS.TARGET_FPS;
                 
-                if (cannons.length < maxCannons && cannonSpawnTimer > spawnInterval) {
+                // Calculate random spawn interval with ±30% variation
+                if (game.nextCannonSpawnInterval === 0) {
+                    const baseInterval = config.cannonSpawnRateSeconds * CONSTANTS.TARGET_FPS;
+                    const variation = CONSTANTS.CANNON_SPAWN_VARIATION;
+                    game.nextCannonSpawnInterval = baseInterval * (1 + (Math.random() - 0.5) * 2 * variation);
+                }
+                
+                if (cannons.length < maxCannons && cannonSpawnTimer > game.nextCannonSpawnInterval) {
                     spawnCannon();
                     cannonSpawnTimer = 0;
+                    game.nextCannonSpawnInterval = 0; // Reset to calculate new random interval
                 }
                 
                 // Update cannons
@@ -1646,6 +1715,9 @@
         }
         
         function damageShip(amount) {
+            // Skip damage if invulnerable
+            if (ship.invulnerable) return;
+            
             ship.shields -= amount;
             ship.timeSinceLastDamage = 0; // Reset regeneration timer
             ship.shieldsFullSoundPlayed = false; // Allow sound to play again when shields refill
@@ -1674,10 +1746,21 @@
         }
         
         function destroyShip() {
-            game.isGameOver = true;
-            game.respawnTimer = 0;
-            document.getElementById('gameOver').style.display = 'block';
-            playExplosion();
+            ship.lives--;
+            updateLives();
+            
+            if (ship.lives <= 0) {
+                // Game over
+                game.isGameOver = true;
+                game.respawnTimer = 0;
+                document.getElementById('gameOver').style.display = 'block';
+                playExplosion();
+            } else {
+                // Respawn with remaining lives
+                game.isGameOver = true; // Temporarily set to trigger respawn animation
+                game.respawnTimer = 0;
+                playExplosion();
+            }
         }
         
         function respawnShip() {
@@ -1688,8 +1771,14 @@
             ship.vy = 0;
             ship.timeSinceLastDamage = 0;
             ship.shieldsFullSoundPlayed = true; // Don't play sound on respawn
+            ship.invulnerable = true;
+            ship.invulnerabilityTimer = CONSTANTS.RESPAWN_INVULNERABILITY_FRAMES;
             game.isGameOver = false;
             document.getElementById('gameOver').style.display = 'none';
+            
+            // Clear enemy projectiles for fairness
+            enemyLasers.length = 0;
+            
             updateShields();
         }
         
@@ -1755,6 +1844,7 @@
             game.countdownActive = false;
             game.powerUpSpawned = false;
             game.bombPowerUpTimer = 0;
+            game.nextCannonSpawnInterval = 0; // Reset for new level
             
             // Set level duration from config
             const config = getCurrentLevelConfig();
@@ -1837,6 +1927,30 @@
                 bombCountEl.textContent = `BOMBS: ${game.bombCount}`;
             } else {
                 bombCountEl.style.display = 'none';
+            }
+        }
+        
+        function updateLives() {
+            livesCtx.clearRect(0, 0, livesCanvas.width, livesCanvas.height);
+            
+            // Draw mini ship icons for each life
+            for (let i = 0; i < ship.lives; i++) {
+                const x = i * 35 + 5;
+                const y = 10;
+                const scale = 0.5;
+                
+                // Mini ship body
+                livesCtx.fillStyle = '#00aaff';
+                livesCtx.strokeStyle = '#0088cc';
+                livesCtx.lineWidth = 1;
+                
+                livesCtx.beginPath();
+                livesCtx.moveTo(x + 20 * scale, y); // Nose
+                livesCtx.lineTo(x, y - 5 * scale); // Top back
+                livesCtx.lineTo(x, y + 5 * scale); // Bottom back
+                livesCtx.closePath();
+                livesCtx.fill();
+                livesCtx.stroke();
             }
         }
         
@@ -2134,26 +2248,31 @@
             
             // Draw ship
             if (!game.isGameOver) {
-                // Ship body
-                ctx.fillStyle = '#00aaff';
-                ctx.strokeStyle = '#0088cc';
-                ctx.lineWidth = 2;
+                // Flash ship when invulnerable
+                const flashVisible = !ship.invulnerable || Math.floor(ship.invulnerabilityTimer / 5) % 2 === 0;
                 
-                ctx.beginPath();
-                ctx.moveTo(ship.x + ship.width, ship.y + ship.height / 2); // Nose
-                ctx.lineTo(ship.x, ship.y); // Top back
-                ctx.lineTo(ship.x, ship.y + ship.height); // Bottom back
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
+                if (flashVisible) {
+                    // Ship body
+                    ctx.fillStyle = ship.invulnerable ? '#00ffff' : '#00aaff';
+                    ctx.strokeStyle = ship.invulnerable ? '#00cccc' : '#0088cc';
+                    ctx.lineWidth = 2;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(ship.x + ship.width, ship.y + ship.height / 2); // Nose
+                    ctx.lineTo(ship.x, ship.y); // Top back
+                    ctx.lineTo(ship.x, ship.y + ship.height); // Bottom back
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    // Cockpit
+                    ctx.fillStyle = '#00ffff';
+                    ctx.beginPath();
+                    ctx.arc(ship.x + ship.width * 0.6, ship.y + ship.height / 2, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
                 
-                // Cockpit
-                ctx.fillStyle = '#00ffff';
-                ctx.beginPath();
-                ctx.arc(ship.x + ship.width * 0.6, ship.y + ship.height / 2, 4, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Boost flame
+                // Boost flame (always visible)
                 if (ship.acceleration > 0) {
                     const flameLength = 20 + ship.acceleration * 10;
                     
@@ -2206,6 +2325,7 @@
             updateScore();
             updateShields();
             updateSoundIndicator();
+            updateLives();
             requestAnimationFrame(gameLoop);
         }
         
