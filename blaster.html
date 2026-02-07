@@ -919,7 +919,9 @@
             nextCannonSpawnInterval: 0,
             extraLivesAwarded: [], // Track which extra life thresholds have been awarded
             difficulty: null,
-            started: false
+            started: false,
+            gameOverTimer: 0,
+            demoMode: false
         };
         
         // Ship
@@ -1395,9 +1397,20 @@
                     if (game.respawnTimer > CONSTANTS.RESPAWN_TIMER_FRAMES) {
                         respawnShip();
                     }
+                } else {
+                    // No lives left - count down to demo mode
+                    game.gameOverTimer += deltaTime;
+                    const DEMO_MODE_DELAY = 600; // 10 seconds at 60fps
+                    
+                    if (game.gameOverTimer > DEMO_MODE_DELAY && !game.demoMode) {
+                        startDemoMode();
+                    }
                 }
-                // If no lives, stay in game over state (only New Game button can exit)
-                return;
+                
+                // If in demo mode, continue game simulation
+                if (!game.demoMode) {
+                    return;
+                }
             }
             
             if (game.isDocked) {
@@ -1461,18 +1474,65 @@
             ship.vy = 0;
             ship.acceleration = 0;
             
-            if (keys['ArrowLeft']) {
-                ship.vx = -CONSTANTS.SHIP_SPEED;
-            }
-            if (keys['ArrowRight']) {
-                ship.vx = CONSTANTS.SHIP_SPEED;
-                ship.acceleration = 1;
-            }
-            if (keys['ArrowUp']) {
-                ship.vy = -CONSTANTS.SHIP_SPEED;
-            }
-            if (keys['ArrowDown']) {
-                ship.vy = CONSTANTS.SHIP_SPEED;
+            // Demo mode: AI controls ship
+            if (game.demoMode) {
+                // Check if docking station is visible and ready
+                if (station.active && station.isVisible) {
+                    // Navigate to docking bay
+                    const dockCenterX = station.dockingBay.x + station.dockingBay.width / 2;
+                    const dockCenterY = station.dockingBay.y + station.dockingBay.height / 2;
+                    const shipCenterX = ship.x + ship.width / 2;
+                    const shipCenterY = ship.y + ship.height / 2;
+                    
+                    // Move toward docking bay center
+                    if (shipCenterX < dockCenterX - 5) {
+                        ship.vx = CONSTANTS.SHIP_SPEED * 0.5;
+                    } else if (shipCenterX > dockCenterX + 5) {
+                        ship.vx = -CONSTANTS.SHIP_SPEED * 0.5;
+                    } else {
+                        ship.vx = 0;
+                    }
+                    
+                    if (shipCenterY < dockCenterY - 5) {
+                        ship.vy = CONSTANTS.SHIP_SPEED * 0.5;
+                    } else if (shipCenterY > dockCenterY + 5) {
+                        ship.vy = -CONSTANTS.SHIP_SPEED * 0.5;
+                    } else {
+                        ship.vy = 0;
+                    }
+                } else {
+                    // Simple AI: avoid terrain and obstacles, move right slowly
+                    const terrainHeight = getTerrainHeightAt(ship.x + ship.width);
+                    const targetY = terrainHeight - 100; // Stay 100px above terrain
+                    
+                    ship.vx = CONSTANTS.SHIP_SPEED * 0.05; // Move right slowly
+                    
+                    if (ship.y < targetY - 20) {
+                        ship.vy = CONSTANTS.SHIP_SPEED * 0.5; // Move down
+                    } else if (ship.y > targetY + 20) {
+                        ship.vy = -CONSTANTS.SHIP_SPEED * 0.5; // Move up
+                    }
+                    
+                    // Auto-fire occasionally
+                    if (Math.random() < 0.02) {
+                        fireLaser();
+                    }
+                }
+            } else {
+                // Player controls
+                if (keys['ArrowLeft']) {
+                    ship.vx = -CONSTANTS.SHIP_SPEED;
+                }
+                if (keys['ArrowRight']) {
+                    ship.vx = CONSTANTS.SHIP_SPEED;
+                    ship.acceleration = 1;
+                }
+                if (keys['ArrowUp']) {
+                    ship.vy = -CONSTANTS.SHIP_SPEED;
+                }
+                if (keys['ArrowDown']) {
+                    ship.vy = CONSTANTS.SHIP_SPEED;
+                }
             }
             
             // Update ship position
@@ -1949,6 +2009,13 @@
         }
         
         function destroyShip() {
+            // In demo mode, restart immediately
+            if (game.demoMode) {
+                playExplosion();
+                startDemoMode();
+                return;
+            }
+            
             ship.lives--;
             updateLives();
             
@@ -1956,6 +2023,7 @@
                 // Game over
                 game.isGameOver = true;
                 game.respawnTimer = 0;
+                game.gameOverTimer = 0; // Start counting to demo mode
                 document.getElementById('gameOver').style.display = 'block';
                 playExplosion();
             } else {
@@ -1964,6 +2032,60 @@
                 game.respawnTimer = 0;
                 playExplosion();
             }
+        }
+        
+        function startDemoMode() {
+            game.demoMode = true;
+            game.isGameOver = false; // Allow ship to be drawn again
+            
+            // Mute sound during demo mode
+            game.soundEnabled = false;
+            updateSoundIndicator();
+            
+            // Initialize fresh game state for demo
+            game.level = 1;
+            game.levelElapsedMs = 0;
+            const config = getCurrentLevelConfig();
+            game.levelDurationMs = config.durationSeconds * 1000;
+            game.isDocked = false;
+            game.dockingTimer = 0;
+            game.countdownActive = false;
+            game.powerUpSpawned = false;
+            game.bombPowerUpTimer = 0;
+            game.nextCannonSpawnInterval = 0;
+            
+            // Reset ship for demo
+            ship.shields = ship.maxShields;
+            ship.x = CONSTANTS.SHIP_START_X;
+            ship.y = CONSTANTS.SHIP_START_Y;
+            ship.vx = 0;
+            ship.vy = 0;
+            ship.invulnerable = true; // Invincible in demo mode
+            
+            // Clear all entities
+            enemyLasers.length = 0;
+            bombs.length = 0;
+            obstacles.length = 0;
+            powerUps.length = 0;
+            bombPowerUps.length = 0;
+            cannons.length = 0;
+            lasers.length = 0;
+            
+            // Reset station
+            station.active = false;
+            station.isVisible = false;
+            
+            // Reset spawn timers
+            obstacleSpawnTimer = 0;
+            cannonSpawnTimer = 0;
+            
+            // Hide UI overlays
+            document.getElementById('dockingHint').style.display = 'none';
+            document.getElementById('countdown').style.display = 'none';
+            
+            // Keep game over overlay visible but dim it
+            const gameOverEl = document.getElementById('gameOver');
+            gameOverEl.style.opacity = '0.7';
         }
         
         function respawnShip() {
@@ -2555,7 +2677,9 @@
         
         function resetGame() {
             // Hide game over screen
-            document.getElementById('gameOver').style.display = 'none';
+            const gameOverEl = document.getElementById('gameOver');
+            gameOverEl.style.display = 'none';
+            gameOverEl.style.opacity = '1'; // Reset opacity
             
             // Reset all game state
             game.score = 0;
@@ -2575,6 +2699,8 @@
             game.extraLivesAwarded = [];
             game.difficulty = null;
             game.started = false;
+            game.gameOverTimer = 0;
+            game.demoMode = false;
             
             // Reset ship
             ship.x = CONSTANTS.SHIP_START_X;
