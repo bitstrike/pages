@@ -299,6 +299,7 @@
             // Shield Regeneration
             SHIELD_REGEN_DELAY_SECONDS: 3,
             SHIELD_REGEN_RATE_PER_SECOND: 1 / 3, // 1 shield point every 3 seconds
+            SHIELD_REGEN_PER_OBJECT: 2, // Bonus shields for destroying objects
             
             // Stars
             STAR_COUNT: 100,
@@ -1408,6 +1409,7 @@
                         game.score += CONSTANTS.BOMB_POINTS;
                         updateScore();
                         playExplosion();
+                        regenerateShieldsFromDestruction();
                         continue;
                     }
                 } else {
@@ -1471,6 +1473,7 @@
                             game.score += CONSTANTS.CANNON_POINTS;
                             updateScore();
                             playExplosion();
+                            regenerateShieldsFromDestruction();
                             break;
                         }
                     }
@@ -1526,6 +1529,7 @@
                         game.score += CONSTANTS.OBSTACLE_POINTS;
                         updateScore();
                         playExplosion();
+                        regenerateShieldsFromDestruction();
                         break;
                     }
                 }
@@ -1588,6 +1592,23 @@
             
             if (ship.shields <= 0) {
                 destroyShip();
+            }
+        }
+        
+        function regenerateShieldsFromDestruction() {
+            // Only regenerate if delay period has passed
+            if (ship.timeSinceLastDamage >= CONSTANTS.SHIELD_REGEN_DELAY_SECONDS) {
+                if (ship.shields < ship.maxShields) {
+                    const wasNotFull = ship.shields < ship.maxShields;
+                    ship.shields = Math.min(ship.maxShields, ship.shields + CONSTANTS.SHIELD_REGEN_PER_OBJECT);
+                    updateShields();
+                    
+                    // Play sound when shields reach 100%
+                    if (wasNotFull && ship.shields >= ship.maxShields && !ship.shieldsFullSoundPlayed) {
+                        playShieldsFullTone();
+                        ship.shieldsFullSoundPlayed = true;
+                    }
+                }
             }
         }
         
