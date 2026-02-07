@@ -264,7 +264,7 @@
             POWERUP_SIZE: 15,
             POWERUP_SPAWN_FRACTION: 0.5, // Midpoint of level
             BOMB_POWERUP_SIZE: 12,
-            BOMB_POWERUP_SPAWN_MULTIPLIER: 2, // Bombs spawn at 3x cannon spawn interval
+            BOMB_POWERUP_SPAWN_MULTIPLIER: 4, // Bombs spawn at 3x cannon spawn interval
             BOMB_POWERUP_COUNT: 2,
             BOMB_POWERUP_BONUS: 25,
             
@@ -1369,6 +1369,28 @@
             for (let i = bombs.length - 1; i >= 0; i--) {
                 const bomb = bombs[i];
                 
+                // If target is destroyed or doesn't exist, try to find a new target
+                if (!bomb.target || bomb.target.destroyed) {
+                    // Find nearest cannon within view
+                    let nearestTarget = null;
+                    let nearestDist = Infinity;
+                    
+                    for (let cannon of cannons) {
+                        if (!cannon.destroyed && cannon.x >= 0 && cannon.x <= canvas.width) {
+                            const dist = Math.sqrt(
+                                Math.pow(cannon.x - bomb.x, 2) + 
+                                Math.pow(cannon.y - bomb.y, 2)
+                            );
+                            if (dist < nearestDist) {
+                                nearestDist = dist;
+                                nearestTarget = cannon;
+                            }
+                        }
+                    }
+                    
+                    bomb.target = nearestTarget;
+                }
+                
                 // If target exists and not destroyed, home in on it
                 if (bomb.target && !bomb.target.destroyed) {
                     const dx = bomb.target.x - bomb.x;
@@ -1389,7 +1411,7 @@
                         continue;
                     }
                 } else {
-                    // No target, just move forward
+                    // No target available, just move forward
                     bomb.vx = bomb.speed;
                     bomb.vy = 0;
                 }
