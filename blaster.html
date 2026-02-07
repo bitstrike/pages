@@ -97,6 +97,26 @@
             box-shadow: 0 0 10px #0ff;
         }
         
+        #shieldFill.regen-pulse {
+            animation: regenPulse 0.3s ease-out;
+        }
+        
+        #shieldFill.damage-pulse {
+            animation: damagePulse 0.3s ease-out;
+        }
+        
+        @keyframes regenPulse {
+            0% { box-shadow: 0 0 10px #0ff; }
+            50% { box-shadow: 0 0 25px #0f0, 0 0 35px #0f0; }
+            100% { box-shadow: 0 0 10px #0ff; }
+        }
+        
+        @keyframes damagePulse {
+            0% { box-shadow: 0 0 10px #0ff; }
+            50% { box-shadow: 0 0 25px #f00, 0 0 35px #f00; }
+            100% { box-shadow: 0 0 10px #0ff; }
+        }
+        
         #gameOver {
             position: absolute;
             top: 50%;
@@ -600,6 +620,39 @@
                 oscillator.start(startTime);
                 oscillator.stop(startTime + 0.1);
             }
+        }
+        
+        function playSkidSound() {
+            if (!game.soundEnabled) return;
+            
+            // Generate deep static crunch sound
+            const bufferSize = audioContext.sampleRate * 0.2;
+            const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+            const data = buffer.getChannelData(0);
+            
+            // Create filtered noise with decay
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioContext.sampleRate * 0.05));
+            }
+            
+            const noise = audioContext.createBufferSource();
+            const gainNode = audioContext.createGain();
+            const filter = audioContext.createBiquadFilter();
+            
+            noise.buffer = buffer;
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(200, audioContext.currentTime); // Deep rumble
+            filter.Q.setValueAtTime(2, audioContext.currentTime);
+            
+            noise.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            gainNode.gain.setValueAtTime(0.33, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+            
+            noise.start(audioContext.currentTime);
+            noise.stop(audioContext.currentTime + 0.2);
         }
         
         function activateDualShot() {
@@ -1178,7 +1231,8 @@
                     ship.y--;
                 }
                 
-                // Damage shields on terrain collision
+                // Play skid sound and damage shields on terrain collision
+                playSkidSound();
                 damageShip(CONSTANTS.TERRAIN_COLLISION_DAMAGE);
             }
             
@@ -1187,10 +1241,17 @@
             
             if (ship.timeSinceLastDamage >= CONSTANTS.SHIELD_REGEN_DELAY_SECONDS) {
                 if (ship.shields < ship.maxShields) {
+                    const oldShields = ship.shields;
                     const regenAmount = (CONSTANTS.SHIELD_REGEN_RATE_PER_SECOND * deltaTime) / CONSTANTS.TARGET_FPS;
                     const wasNotFull = ship.shields < ship.maxShields;
                     ship.shields = Math.min(ship.maxShields, ship.shields + regenAmount);
-                    updateShields();
+                    
+                    // Only pulse if shields actually changed (visible increment)
+                    if (Math.floor(ship.shields) > Math.floor(oldShields)) {
+                        updateShields('regen');
+                    } else {
+                        updateShields();
+                    }
                     
                     // Play sound when shields reach 100%
                     if (wasNotFull && ship.shields >= ship.maxShields && !ship.shieldsFullSoundPlayed) {
@@ -1588,7 +1649,7 @@
             ship.shields -= amount;
             ship.timeSinceLastDamage = 0; // Reset regeneration timer
             ship.shieldsFullSoundPlayed = false; // Allow sound to play again when shields refill
-            updateShields();
+            updateShields('damage');
             
             if (ship.shields <= 0) {
                 destroyShip();
@@ -1601,7 +1662,7 @@
                 if (ship.shields < ship.maxShields) {
                     const wasNotFull = ship.shields < ship.maxShields;
                     ship.shields = Math.min(ship.maxShields, ship.shields + CONSTANTS.SHIELD_REGEN_PER_OBJECT);
-                    updateShields();
+                    updateShields('regen');
                     
                     // Play sound when shields reach 100%
                     if (wasNotFull && ship.shields >= ship.maxShields && !ship.shieldsFullSoundPlayed) {
@@ -1732,9 +1793,21 @@
             document.getElementById('score').textContent = `SCORE: ${game.score}`;
         }
         
-        function updateShields() {
+        function updateShields(pulseType = null) {
             const percentage = (ship.shields / ship.maxShields) * 100;
-            document.getElementById('shieldFill').style.width = `${Math.max(0, percentage)}%`;
+            const shieldFill = document.getElementById('shieldFill');
+            shieldFill.style.width = `${Math.max(0, percentage)}%`;
+            
+            // Add pulsate animation
+            if (pulseType === 'regen') {
+                shieldFill.classList.remove('damage-pulse', 'regen-pulse');
+                void shieldFill.offsetWidth; // Force reflow to restart animation
+                shieldFill.classList.add('regen-pulse');
+            } else if (pulseType === 'damage') {
+                shieldFill.classList.remove('damage-pulse', 'regen-pulse');
+                void shieldFill.offsetWidth; // Force reflow to restart animation
+                shieldFill.classList.add('damage-pulse');
+            }
         }
         
         function updateSoundIndicator() {
