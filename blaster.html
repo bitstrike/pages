@@ -209,6 +209,7 @@
         <div id="instructions">
             Arrow Keys: Move | Spacebar: Fire | B: Bomb (Lv4+) | S: Toggle Sound | P: Pause
         </div>
+        <audio id="dockingStationSound" src="docking-station.mp3" loop></audio>
     </div>
 
     <script>
@@ -356,6 +357,7 @@
         
         // Audio context for sound effects
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const dockingStationAudio = document.getElementById('dockingStationSound');
         
         // Sound effects using Web Audio API
         function playPewPew() {
@@ -428,6 +430,25 @@
                 oscillator.start(startTime);
                 oscillator.stop(startTime + 0.2);
             }
+        }
+        
+        function playDockingReady() {
+            if (!game.soundEnabled) return;
+            
+            // Play single ready tone
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.4);
         }
         
         function activateDualShot() {
@@ -798,6 +819,13 @@
             
             station.active = true;
             station.isVisible = false;
+            
+            // Start playing docking station approach sound
+            if (game.soundEnabled) {
+                dockingStationAudio.currentTime = 0;
+                dockingStationAudio.volume = 0.5;
+                dockingStationAudio.play().catch(e => console.log('Audio play failed:', e));
+            }
         }
         
         function updateStation() {
@@ -807,6 +835,12 @@
                     station.x -= 1;
                     if (station.x <= canvas.width - station.width - 100) {
                         station.isVisible = true;
+                        
+                        // Stop docking station sound and play ready tone
+                        dockingStationAudio.pause();
+                        dockingStationAudio.currentTime = 0;
+                        playDockingReady();
+                        
                         // Start countdown now that station is visible
                         startCountdown();
                     }
