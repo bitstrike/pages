@@ -1568,18 +1568,24 @@
             // Draw obstacles
             for (let obs of obstacles) {
                 if (!obs.destroyed) {
-                    // Draw asteroid-like obstacle
+                    // Draw asteroid-like obstacle with irregular round shape
                     ctx.fillStyle = '#8b4513';
                     ctx.strokeStyle = '#654321';
                     ctx.lineWidth = 2;
                     
                     ctx.beginPath();
-                    const sides = 8;
-                    for (let i = 0; i < sides; i++) {
+                    const sides = 12; // More sides for rounder appearance
+                    const centerX = obs.x + obs.width / 2;
+                    const centerY = obs.y + obs.height / 2;
+                    const baseRadius = obs.width / 2;
+                    
+                    for (let i = 0; i <= sides; i++) {
                         const angle = (i / sides) * Math.PI * 2;
-                        const radius = obs.width / 2 + Math.sin(angle * 3) * 5;
-                        const x = obs.x + obs.width / 2 + Math.cos(angle) * radius;
-                        const y = obs.y + obs.height / 2 + Math.sin(angle) * radius;
+                        // Create irregular bumpy surface with multiple sine waves
+                        const variation = Math.sin(angle * 3) * 0.15 + Math.sin(angle * 5) * 0.1;
+                        const radius = baseRadius * (1 + variation);
+                        const x = centerX + Math.cos(angle) * radius;
+                        const y = centerY + Math.sin(angle) * radius;
                         
                         if (i === 0) ctx.moveTo(x, y);
                         else ctx.lineTo(x, y);
@@ -1587,6 +1593,21 @@
                     ctx.closePath();
                     ctx.fill();
                     ctx.stroke();
+                    
+                    // Add crater details for more asteroid-like appearance
+                    ctx.fillStyle = '#654321';
+                    const craterCount = 2 + Math.floor(obs.width / 15);
+                    for (let i = 0; i < craterCount; i++) {
+                        const craterAngle = (i / craterCount) * Math.PI * 2 + obs.width;
+                        const craterDist = baseRadius * 0.4;
+                        const craterX = centerX + Math.cos(craterAngle) * craterDist;
+                        const craterY = centerY + Math.sin(craterAngle) * craterDist;
+                        const craterSize = baseRadius * 0.15;
+                        
+                        ctx.beginPath();
+                        ctx.arc(craterX, craterY, craterSize, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
                 }
             }
             
