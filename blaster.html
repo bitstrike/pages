@@ -1,0 +1,1686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blaster - Defender Clone</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        
+        #gameContainer {
+            position: relative;
+        }
+        
+        canvas {
+            border: 2px solid #333;
+            display: block;
+            background: #000814;
+        }
+        
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            color: #0ff;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 0 0 10px #0ff;
+        }
+        
+        #topRow {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        #countdown {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 36px;
+            color: #ff0;
+            text-shadow: 0 0 20px #ff0;
+            display: none;
+            animation: pulse 1s infinite;
+        }
+        
+        #countdown.critical {
+            color: #f00;
+            text-shadow: 0 0 20px #f00;
+            animation: pulse 0.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: translateX(-50%) scale(1); }
+            50% { transform: translateX(-50%) scale(1.1); }
+        }
+        
+        .hud-item {
+            margin-bottom: 8px;
+        }
+        
+        #score {
+            font-size: 24px;
+        }
+        
+        #shieldBar {
+            width: 200px;
+            height: 20px;
+            background: #001a33;
+            border: 2px solid #0066cc;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        #shieldFill {
+            height: 100%;
+            background: linear-gradient(90deg, #0099ff, #00ffff);
+            width: 100%;
+            transition: width 0.2s;
+            box-shadow: 0 0 10px #0ff;
+        }
+        
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #f00;
+            font-size: 48px;
+            text-shadow: 0 0 20px #f00;
+            display: none;
+        }
+        
+        #levelComplete {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #0f0;
+            font-size: 48px;
+            text-shadow: 0 0 20px #0f0;
+            display: none;
+            text-align: center;
+        }
+        
+        #dockingHint {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ff0;
+            font-size: 24px;
+            text-shadow: 0 0 10px #ff0;
+            display: none;
+        }
+        
+        #powerUpIndicator {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(calc(-100% - 20px)); /* 20px to the left of center */
+            color: #00bfff;
+            font-size: 24px;
+            text-shadow: 0 0 15px #00bfff;
+            display: none;
+            animation: blink 0.5s infinite;
+        }
+        
+        #soundIndicator {
+            position: absolute;
+            top: 50px;
+            right: 10px;
+            color: #888;
+            font-size: 20px;
+            text-shadow: 0 0 5px #888;
+        }
+        
+        #soundIndicator.muted {
+            color: #f00;
+            text-shadow: 0 0 5px #f00;
+        }
+        
+        #pauseOverlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 64px;
+            text-shadow: 0 0 30px #fff;
+            display: none;
+            z-index: 100;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        #instructions {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: #888;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="hud">
+            <div id="topRow">
+                <div id="score" class="hud-item">SCORE: 0</div>
+                <div id="level" class="hud-item">LEVEL: 1</div>
+            </div>
+            <div class="hud-item">
+                <div>SHIELDS</div>
+                <div id="shieldBar">
+                    <div id="shieldFill"></div>
+                </div>
+            </div>
+            <div id="bombCount" class="hud-item" style="color: #00f; display: none;">BOMBS: 0</div>
+        </div>
+        <div id="countdown"></div>
+        <div id="powerUpIndicator">◆◆</div>
+        <div id="soundIndicator">🔊</div>
+        <div id="pauseOverlay">PAUSED</div>
+        <canvas id="gameCanvas"></canvas>
+        <div id="gameOver">SHIP DESTROYED!</div>
+        <div id="levelComplete">LEVEL COMPLETE!<br><span style="font-size: 24px;">Next level starting...</span></div>
+        <div id="dockingHint">⚠ STATION AHEAD - DOCK TO COMPLETE LEVEL ⚠</div>
+        <div id="instructions">
+            Arrow Keys: Move | Spacebar: Fire | B: Bomb (Lv4+) | S: Toggle Sound | P: Pause
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        canvas.width = 1200;
+        canvas.height = 600;
+        
+        // Audio context for sound effects
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Sound effects using Web Audio API
+        function playPewPew() {
+            if (!game.soundEnabled) return;
+            
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.1);
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.1);
+        }
+        
+        function playExplosion() {
+            if (!game.soundEnabled) return;
+            
+            const bufferSize = audioContext.sampleRate * 0.5;
+            const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+            const data = buffer.getChannelData(0);
+            
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioContext.sampleRate * 0.1));
+            }
+            
+            const noise = audioContext.createBufferSource();
+            const gainNode = audioContext.createGain();
+            const filter = audioContext.createBiquadFilter();
+            
+            noise.buffer = buffer;
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1000, audioContext.currentTime);
+            filter.frequency.exponentialRampToValueAtTime(50, audioContext.currentTime + 0.3);
+            
+            noise.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            
+            noise.start(audioContext.currentTime);
+            noise.stop(audioContext.currentTime + 0.3);
+        }
+        
+        function playDockingSuccess() {
+            if (!game.soundEnabled) return;
+            
+            // Play ascending tones for success
+            for (let i = 0; i < 3; i++) {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                const startTime = audioContext.currentTime + i * 0.1;
+                oscillator.frequency.setValueAtTime(400 + i * 200, startTime);
+                
+                gainNode.gain.setValueAtTime(0.2, startTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.2);
+                
+                oscillator.start(startTime);
+                oscillator.stop(startTime + 0.2);
+            }
+        }
+        
+        function activateDualShot() {
+            game.dualShotActive = true;
+            game.dualShotTimer = 600; // 10 seconds at 60fps
+            game.score += 25; // Bonus points for collecting power-up
+            updateScore();
+            
+            // Show power-up indicator
+            document.getElementById('powerUpIndicator').style.display = 'block';
+            
+            // Play power-up sound
+            if (game.soundEnabled) {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(800, audioContext.currentTime + 0.3);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+            }
+        }
+        
+        // Game state
+        const game = {
+            score: 0,
+            scrollSpeed: 3,
+            terrainOffset: 0,
+            isGameOver: false,
+            respawnTimer: 0,
+            level: 1,
+            levelDistance: 0,
+            levelLength: 3000, // Distance to travel before station appears
+            isDocked: false,
+            dockingTimer: 0,
+            countdownActive: false,
+            countdownTime: 10,
+            countdownFrames: 0,
+            dualShotActive: false,
+            dualShotTimer: 0,
+            powerUpSpawned: false,
+            soundEnabled: true,
+            isPaused: false,
+            bombCount: 0,
+            bombPowerUpSpawned: false
+        };
+        
+        // Ship
+        const ship = {
+            x: 200,
+            y: 300,
+            width: 40,
+            height: 20,
+            vx: 0,
+            vy: 0,
+            shields: 50,
+            maxShields: 50,
+            acceleration: 0,
+            lives: 3
+        };
+        
+        // Controls
+        const keys = {};
+        
+        window.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            
+            // Spacebar to fire
+            if (e.key === ' ' && !game.isGameOver && !game.isPaused) {
+                e.preventDefault();
+                fireLaser();
+            }
+            
+            // 's' key to toggle sound
+            if (e.key === 's' || e.key === 'S') {
+                game.soundEnabled = !game.soundEnabled;
+                updateSoundIndicator();
+            }
+            
+            // 'p' key to toggle pause
+            if (e.key === 'p' || e.key === 'P') {
+                game.isPaused = !game.isPaused;
+                updatePauseDisplay();
+            }
+            
+            // 'b' key to fire bomb
+            if (e.key === 'b' || e.key === 'B') {
+                if (!game.isPaused && !game.isGameOver && game.bombCount > 0) {
+                    fireBomb();
+                }
+            }
+        });
+        
+        window.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+        
+        // Lasers
+        const lasers = [];
+        
+        function fireLaser() {
+            if (game.dualShotActive) {
+                // Fire two lasers in a fanned pattern
+                lasers.push({
+                    x: ship.x + ship.width,
+                    y: ship.y + ship.height / 2,
+                    width: 20,
+                    height: 3,
+                    speed: 15,
+                    angle: -0.2 // Upward angle
+                });
+                lasers.push({
+                    x: ship.x + ship.width,
+                    y: ship.y + ship.height / 2,
+                    width: 20,
+                    height: 3,
+                    speed: 15,
+                    angle: 0.2 // Downward angle
+                });
+            } else {
+                // Single straight laser
+                lasers.push({
+                    x: ship.x + ship.width,
+                    y: ship.y + ship.height / 2,
+                    width: 20,
+                    height: 3,
+                    speed: 15,
+                    angle: 0
+                });
+            }
+            playPewPew();
+        }
+        
+        // Obstacles
+        const obstacles = [];
+        let obstacleSpawnTimer = 0;
+        
+        // Power-ups
+        const powerUps = [];
+        const bombPowerUps = []; // Red dot power-ups for bombs
+        const bombs = []; // Active heat-seeking bombs
+        
+        // Laser Cannons (level 3+)
+        const cannons = [];
+        let cannonSpawnTimer = 0;
+        const enemyLasers = [];
+        
+        function spawnCannon() {
+            // Find terrain height at a random x position
+            const spawnX = canvas.width + 50; // Start off-screen right
+            
+            cannons.push({
+                x: spawnX,
+                y: 0, // Will be set based on terrain
+                width: 30,
+                height: 40,
+                barrelAngle: 0,
+                fireTimer: 120, // Fire every 2 seconds (120 frames at 60fps)
+                destroyed: false
+            });
+        }
+        
+        function getTerrainHeightAt(x) {
+            // Find the terrain height at a given x position
+            for (let i = 0; i < terrain.points.length - 1; i++) {
+                const p1 = terrain.points[i];
+                const p2 = terrain.points[i + 1];
+                
+                if (x >= p1.x && x <= p2.x) {
+                    // Linear interpolation
+                    const t = (x - p1.x) / (p2.x - p1.x);
+                    return p1.y + (p2.y - p1.y) * t;
+                }
+            }
+            return canvas.height - 100; // Default
+        }
+        
+        function fireCannonLaser(cannon) {
+            // Calculate direction to ship
+            const dx = ship.x + ship.width / 2 - cannon.x;
+            const dy = ship.y + ship.height / 2 - cannon.y;
+            const baseAngle = Math.atan2(dy, dx);
+            
+            // Level 4+: Fire two-shot burst with 10 degree spread
+            if (game.level >= 4) {
+                const spreadAngle = (10 * Math.PI) / 180; // 10 degrees in radians
+                
+                // First shot - angled up
+                enemyLasers.push({
+                    x: cannon.x,
+                    y: cannon.y - 15,
+                    width: 15,
+                    height: 3,
+                    speed: 8,
+                    angle: baseAngle - spreadAngle / 2
+                });
+                
+                // Second shot - angled down
+                enemyLasers.push({
+                    x: cannon.x,
+                    y: cannon.y - 15,
+                    width: 15,
+                    height: 3,
+                    speed: 8,
+                    angle: baseAngle + spreadAngle / 2
+                });
+            } else {
+                // Level 3: Single shot
+                enemyLasers.push({
+                    x: cannon.x,
+                    y: cannon.y - 15,
+                    width: 15,
+                    height: 3,
+                    speed: 8,
+                    angle: baseAngle
+                });
+            }
+            
+            // Play enemy laser sound
+            if (game.soundEnabled) {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(150, audioContext.currentTime + 0.15);
+                
+                gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.15);
+            }
+        }
+        
+        function spawnObstacle() {
+            const size = 20 + Math.random() * 30;
+            // Spawn only in the safe area above terrain (leaving margin)
+            const safeTopArea = canvas.height - 250; // Terrain is roughly at bottom 200px
+            obstacles.push({
+                x: canvas.width,
+                y: 50 + Math.random() * safeTopArea, // Keep away from top and terrain
+                width: size,
+                height: size,
+                destroyed: false
+            });
+        }
+        
+        function spawnPowerUp() {
+            // Spawn in safe area above terrain
+            const safeTopArea = canvas.height - 250;
+            powerUps.push({
+                x: canvas.width,
+                y: 50 + Math.random() * safeTopArea,
+                size: 15,
+                destroyed: false,
+                rotation: 0
+            });
+        }
+        
+        function spawnBombPowerUp() {
+            // Spawn red dot power-up in safe area
+            const safeTopArea = canvas.height - 250;
+            bombPowerUps.push({
+                x: canvas.width,
+                y: 50 + Math.random() * safeTopArea,
+                size: 12,
+                destroyed: false
+            });
+        }
+        
+        function fireBomb() {
+            if (game.bombCount <= 0) return;
+            
+            game.bombCount--;
+            updateBombCount();
+            
+            // Find nearest ground target (cannon) within view
+            let nearestTarget = null;
+            let nearestDist = Infinity;
+            
+            for (let cannon of cannons) {
+                if (!cannon.destroyed && cannon.x >= 0 && cannon.x <= canvas.width) {
+                    const dist = Math.sqrt(
+                        Math.pow(cannon.x - ship.x, 2) + 
+                        Math.pow(cannon.y - ship.y, 2)
+                    );
+                    if (dist < nearestDist) {
+                        nearestDist = dist;
+                        nearestTarget = cannon;
+                    }
+                }
+            }
+            
+            // Create bomb
+            bombs.push({
+                x: ship.x + ship.width,
+                y: ship.y + ship.height / 2,
+                size: 8,
+                speed: 6,
+                target: nearestTarget,
+                vx: 0,
+                vy: 0
+            });
+            
+            // Play bomb launch sound
+            if (game.soundEnabled) {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(150, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(80, audioContext.currentTime + 0.2);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.2);
+            }
+        }
+        
+        // Space Station
+        const station = {
+            x: 0,
+            y: 0,
+            width: 150,
+            height: 200,
+            dockingBay: {
+                x: 0,
+                y: 0,
+                width: 50,
+                height: 30
+            },
+            active: false,
+            isVisible: false
+        };
+        
+        function spawnStation() {
+            station.y = canvas.height / 2 - station.height / 2;
+            station.x = canvas.width + 200; // Start off-screen right
+            
+            // Docking bay is in the middle left side of station
+            station.dockingBay.x = station.x;
+            station.dockingBay.y = station.y + station.height / 2 - station.dockingBay.height / 2;
+            
+            station.active = true;
+            station.isVisible = false;
+        }
+        
+        function updateStation() {
+            if (station.active) {
+                // Move station slowly into view
+                if (!station.isVisible && station.x > canvas.width - station.width - 100) {
+                    station.x -= 1;
+                    if (station.x <= canvas.width - station.width - 100) {
+                        station.isVisible = true;
+                        // Start countdown now that station is visible
+                        startCountdown();
+                    }
+                }
+                
+                // Update docking bay position
+                station.dockingBay.x = station.x;
+                station.dockingBay.y = station.y + station.height / 2 - station.dockingBay.height / 2;
+            }
+        }
+        
+        function checkDocking() {
+            if (!station.active || !station.isVisible) return false;
+            
+            // Check if ship center is within docking bay
+            const dockBox = station.dockingBay;
+            const shipCenterX = ship.x + ship.width / 2;
+            const shipCenterY = ship.y + ship.height / 2;
+            
+            // Ship center must be inside the docking bay rectangle
+            return shipCenterX > dockBox.x && 
+                   shipCenterX < dockBox.x + dockBox.width &&
+                   shipCenterY > dockBox.y && 
+                   shipCenterY < dockBox.y + dockBox.height;
+        }
+        
+        // Starfield
+        const stars = [];
+        function initStars() {
+            for (let i = 0; i < 100; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: (i % 3) * 0.5 + 0.5
+                });
+            }
+        }
+        initStars();
+        
+        // Terrain generation using Perlin-like noise
+        const terrain = {
+            points: [],
+            segmentWidth: 20
+        };
+        
+        function generateTerrain() {
+            terrain.points = [];
+            let y = canvas.height - 100;
+            
+            for (let x = 0; x < canvas.width + 200; x += terrain.segmentWidth) {
+                // Random walk with smoothing
+                y += (Math.random() - 0.5) * 40;
+                y = Math.max(canvas.height - 200, Math.min(canvas.height - 50, y));
+                
+                terrain.points.push({ x, y });
+            }
+        }
+        
+        generateTerrain();
+        
+        // Collision detection
+        function checkCollision(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+        
+        function isShipInTerrain() {
+            // Check if ship is below any terrain point
+            const shipRight = ship.x + ship.width;
+            
+            for (let i = 0; i < terrain.points.length - 1; i++) {
+                const p1 = terrain.points[i];
+                const p2 = terrain.points[i + 1];
+                
+                if (ship.x < p2.x && shipRight > p1.x) {
+                    // Linear interpolation between points
+                    const t = (ship.x + ship.width / 2 - p1.x) / (p2.x - p1.x);
+                    const terrainY = p1.y + (p2.y - p1.y) * t;
+                    
+                    if (ship.y + ship.height > terrainY) {
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
+        }
+        
+        // Update function
+        function update() {
+            if (game.isPaused) {
+                return; // Don't update anything when paused
+            }
+            
+            if (game.isGameOver) {
+                game.respawnTimer++;
+                if (game.respawnTimer > 120) { // 2 seconds
+                    respawnShip();
+                }
+                return;
+            }
+            
+            if (game.isDocked) {
+                game.dockingTimer++;
+                if (game.dockingTimer > 180) { // 3 seconds
+                    nextLevel();
+                }
+                return;
+            }
+            
+            // Track level distance
+            game.levelDistance += game.scrollSpeed;
+            
+            // Spawn station when level distance reached
+            if (game.levelDistance >= game.levelLength && !station.active) {
+                spawnStation();
+                document.getElementById('dockingHint').style.display = 'block';
+            }
+            
+            // Update station
+            updateStation();
+            
+            // Update countdown timer
+            if (game.countdownActive) {
+                game.countdownFrames++;
+                
+                // 60 frames per second, so 60 frames = 1 second
+                if (game.countdownFrames >= 60) {
+                    game.countdownFrames = 0;
+                    game.countdownTime--;
+                    updateCountdownDisplay();
+                    
+                    // Timer ran out!
+                    if (game.countdownTime <= 0) {
+                        timeoutDocking();
+                    }
+                }
+            }
+            
+            // Check for docking
+            if (checkDocking()) {
+                completeDocking();
+            }
+            
+            // Ship movement
+            const speed = 5;
+            ship.vx = 0;
+            ship.vy = 0;
+            ship.acceleration = 0;
+            
+            if (keys['ArrowLeft']) {
+                ship.vx = -speed;
+            }
+            if (keys['ArrowRight']) {
+                ship.vx = speed;
+                ship.acceleration = 1;
+            }
+            if (keys['ArrowUp']) {
+                ship.vy = -speed;
+            }
+            if (keys['ArrowDown']) {
+                ship.vy = speed;
+            }
+            
+            // Update ship position
+            const oldY = ship.y;
+            ship.x += ship.vx;
+            ship.y += ship.vy;
+            
+            // Boundaries
+            ship.x = Math.max(0, Math.min(canvas.width - ship.width, ship.x));
+            ship.y = Math.max(0, Math.min(canvas.height - ship.height, ship.y));
+            
+            // Check terrain collision
+            if (isShipInTerrain()) {
+                ship.y = oldY; // Prevent moving into terrain
+                
+                // If still in terrain, push up
+                while (isShipInTerrain() && ship.y > 0) {
+                    ship.y--;
+                }
+                
+                // Damage shields on terrain collision
+                damageShip(2);
+            }
+            
+            // Update lasers
+            for (let i = lasers.length - 1; i >= 0; i--) {
+                const laser = lasers[i];
+                laser.x += laser.speed;
+                laser.y += laser.speed * Math.sin(laser.angle); // Apply angle for fanned shots
+                
+                // Remove off-screen lasers
+                if (laser.x > canvas.width || laser.y < 0 || laser.y > canvas.height) {
+                    lasers.splice(i, 1);
+                }
+            }
+            
+            // Update dual-shot timer
+            if (game.dualShotActive) {
+                game.dualShotTimer--;
+                if (game.dualShotTimer <= 0) {
+                    game.dualShotActive = false;
+                    document.getElementById('powerUpIndicator').style.display = 'none';
+                }
+            }
+            
+            // Spawn power-up once per level at midpoint
+            if (!game.powerUpSpawned && game.levelDistance >= game.levelLength / 2) {
+                spawnPowerUp();
+                game.powerUpSpawned = true;
+            }
+            
+            // Update power-ups
+            for (let i = powerUps.length - 1; i >= 0; i--) {
+                const powerUp = powerUps[i];
+                powerUp.x -= game.scrollSpeed;
+                powerUp.rotation += 0.05; // Rotate the diamond
+                
+                // Check laser collisions with power-ups
+                for (let j = lasers.length - 1; j >= 0; j--) {
+                    const laser = lasers[j];
+                    const distance = Math.sqrt(
+                        Math.pow(laser.x - powerUp.x, 2) + 
+                        Math.pow(laser.y - powerUp.y, 2)
+                    );
+                    
+                    if (distance < powerUp.size) {
+                        powerUp.destroyed = true;
+                        lasers.splice(j, 1);
+                        activateDualShot();
+                        break;
+                    }
+                }
+                
+                // Check ship collision with power-ups
+                if (!powerUp.destroyed) {
+                    const shipCenterX = ship.x + ship.width / 2;
+                    const shipCenterY = ship.y + ship.height / 2;
+                    const distance = Math.sqrt(
+                        Math.pow(shipCenterX - powerUp.x, 2) + 
+                        Math.pow(shipCenterY - powerUp.y, 2)
+                    );
+                    
+                    if (distance < powerUp.size + 15) { // Ship collision radius
+                        powerUp.destroyed = true;
+                        activateDualShot();
+                    }
+                }
+                
+                // Remove off-screen or destroyed power-ups
+                if (powerUp.x + powerUp.size < 0 || powerUp.destroyed) {
+                    powerUps.splice(i, 1);
+                }
+            }
+            
+            // Spawn bomb power-up once per level at 1/4 point (level 4+)
+            if (game.level >= 4 && !game.bombPowerUpSpawned && game.levelDistance >= game.levelLength / 4) {
+                spawnBombPowerUp();
+                game.bombPowerUpSpawned = true;
+            }
+            
+            // Update bomb power-ups
+            for (let i = bombPowerUps.length - 1; i >= 0; i--) {
+                const bombPU = bombPowerUps[i];
+                bombPU.x -= game.scrollSpeed;
+                
+                // Check laser collisions with bomb power-ups
+                for (let j = lasers.length - 1; j >= 0; j--) {
+                    const laser = lasers[j];
+                    const distance = Math.sqrt(
+                        Math.pow(laser.x - bombPU.x, 2) + 
+                        Math.pow(laser.y - bombPU.y, 2)
+                    );
+                    
+                    if (distance < bombPU.size) {
+                        bombPU.destroyed = true;
+                        lasers.splice(j, 1);
+                        game.bombCount += 2;
+                        game.score += 25;
+                        updateScore();
+                        updateBombCount();
+                        
+                        // Play power-up sound
+                        if (game.soundEnabled) {
+                            const oscillator = audioContext.createOscillator();
+                            const gainNode = audioContext.createGain();
+                            
+                            oscillator.connect(gainNode);
+                            gainNode.connect(audioContext.destination);
+                            
+                            oscillator.frequency.setValueAtTime(250, audioContext.currentTime);
+                            oscillator.frequency.exponentialRampToValueAtTime(600, audioContext.currentTime + 0.2);
+                            
+                            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                            
+                            oscillator.start(audioContext.currentTime);
+                            oscillator.stop(audioContext.currentTime + 0.2);
+                        }
+                        break;
+                    }
+                }
+                
+                // Check ship collision with bomb power-ups
+                if (!bombPU.destroyed) {
+                    const shipCenterX = ship.x + ship.width / 2;
+                    const shipCenterY = ship.y + ship.height / 2;
+                    const distance = Math.sqrt(
+                        Math.pow(shipCenterX - bombPU.x, 2) + 
+                        Math.pow(shipCenterY - bombPU.y, 2)
+                    );
+                    
+                    if (distance < bombPU.size + 15) {
+                        bombPU.destroyed = true;
+                        game.bombCount += 2;
+                        game.score += 25;
+                        updateScore();
+                        updateBombCount();
+                        
+                        // Play power-up sound
+                        if (game.soundEnabled) {
+                            const oscillator = audioContext.createOscillator();
+                            const gainNode = audioContext.createGain();
+                            
+                            oscillator.connect(gainNode);
+                            gainNode.connect(audioContext.destination);
+                            
+                            oscillator.frequency.setValueAtTime(250, audioContext.currentTime);
+                            oscillator.frequency.exponentialRampToValueAtTime(600, audioContext.currentTime + 0.2);
+                            
+                            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                            
+                            oscillator.start(audioContext.currentTime);
+                            oscillator.stop(audioContext.currentTime + 0.2);
+                        }
+                    }
+                }
+                
+                // Remove off-screen or destroyed bomb power-ups
+                if (bombPU.x + bombPU.size < 0 || bombPU.destroyed) {
+                    bombPowerUps.splice(i, 1);
+                }
+            }
+            
+            // Update bombs
+            for (let i = bombs.length - 1; i >= 0; i--) {
+                const bomb = bombs[i];
+                
+                // If target exists and not destroyed, home in on it
+                if (bomb.target && !bomb.target.destroyed) {
+                    const dx = bomb.target.x - bomb.x;
+                    const dy = bomb.target.y - bomb.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // Normalize and apply speed
+                    bomb.vx = (dx / dist) * bomb.speed;
+                    bomb.vy = (dy / dist) * bomb.speed;
+                    
+                    // Check if hit target
+                    if (dist < 20) {
+                        bomb.target.destroyed = true;
+                        bombs.splice(i, 1);
+                        game.score += 50;
+                        updateScore();
+                        playExplosion();
+                        continue;
+                    }
+                } else {
+                    // No target, just move forward
+                    bomb.vx = bomb.speed;
+                    bomb.vy = 0;
+                }
+                
+                bomb.x += bomb.vx;
+                bomb.y += bomb.vy;
+                
+                // Remove off-screen bombs
+                if (bomb.x < 0 || bomb.x > canvas.width || bomb.y < 0 || bomb.y > canvas.height) {
+                    bombs.splice(i, 1);
+                }
+            }
+            
+            // Update laser cannons (level 3+)
+            if (game.level >= 3) {
+                // Spawn cannon if none active and timer ready
+                cannonSpawnTimer++;
+                const maxCannons = 1; // Only 1 cannon at a time for level 3
+                
+                if (cannons.length < maxCannons && cannonSpawnTimer > 180) { // Every 3 seconds
+                    spawnCannon();
+                    cannonSpawnTimer = 0;
+                }
+                
+                // Update cannons
+                for (let i = cannons.length - 1; i >= 0; i--) {
+                    const cannon = cannons[i];
+                    cannon.x -= game.scrollSpeed;
+                    
+                    // Update cannon position to match terrain
+                    cannon.y = getTerrainHeightAt(cannon.x);
+                    
+                    // Aim barrel at ship
+                    const dx = ship.x + ship.width / 2 - cannon.x;
+                    const dy = ship.y + ship.height / 2 - (cannon.y - cannon.height / 2);
+                    cannon.barrelAngle = Math.atan2(dy, dx);
+                    
+                    // Fire at ship
+                    cannon.fireTimer--;
+                    if (cannon.fireTimer <= 0 && !cannon.destroyed) {
+                        fireCannonLaser(cannon);
+                        cannon.fireTimer = 120; // Reset to 2 seconds
+                    }
+                    
+                    // Check if player shot the cannon
+                    for (let j = lasers.length - 1; j >= 0; j--) {
+                        const laser = lasers[j];
+                        if (laser.x > cannon.x - cannon.width / 2 && 
+                            laser.x < cannon.x + cannon.width / 2 &&
+                            laser.y > cannon.y - cannon.height && 
+                            laser.y < cannon.y) {
+                            cannon.destroyed = true;
+                            lasers.splice(j, 1);
+                            game.score += 50; // Bonus for destroying cannon
+                            updateScore();
+                            playExplosion();
+                            break;
+                        }
+                    }
+                    
+                    // Remove off-screen or destroyed cannons
+                    if (cannon.x + cannon.width < 0 || cannon.destroyed) {
+                        cannons.splice(i, 1);
+                    }
+                }
+                
+                // Update enemy lasers
+                for (let i = enemyLasers.length - 1; i >= 0; i--) {
+                    const eLaser = enemyLasers[i];
+                    eLaser.x += eLaser.speed * Math.cos(eLaser.angle);
+                    eLaser.y += eLaser.speed * Math.sin(eLaser.angle);
+                    
+                    // Check if enemy laser hit ship
+                    const distance = Math.sqrt(
+                        Math.pow(eLaser.x - (ship.x + ship.width / 2), 2) +
+                        Math.pow(eLaser.y - (ship.y + ship.height / 2), 2)
+                    );
+                    
+                    if (distance < 15) {
+                        damageShip(3);
+                        enemyLasers.splice(i, 1);
+                        continue;
+                    }
+                    
+                    // Remove off-screen enemy lasers
+                    if (eLaser.x < 0 || eLaser.x > canvas.width || 
+                        eLaser.y < 0 || eLaser.y > canvas.height) {
+                        enemyLasers.splice(i, 1);
+                    }
+                }
+            }
+            
+            // Update obstacles
+            obstacleSpawnTimer++;
+            if (obstacleSpawnTimer > 60) { // Spawn every second, continues even with station
+                spawnObstacle();
+                obstacleSpawnTimer = 0;
+            }
+            
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obs = obstacles[i];
+                obs.x -= game.scrollSpeed;
+                
+                // Check laser collisions
+                for (let j = lasers.length - 1; j >= 0; j--) {
+                    if (checkCollision(lasers[j], obs)) {
+                        obs.destroyed = true;
+                        lasers.splice(j, 1);
+                        game.score += 10;
+                        updateScore();
+                        playExplosion();
+                        break;
+                    }
+                }
+                
+                // Check ship collision
+                if (!obs.destroyed && checkCollision(ship, obs)) {
+                    obs.destroyed = true;
+                    damageShip(5);
+                    playExplosion();
+                }
+                
+                // Remove off-screen or destroyed obstacles
+                if (obs.x + obs.width < 0 || obs.destroyed) {
+                    obstacles.splice(i, 1);
+                }
+            }
+            
+            // Update terrain scroll
+            game.terrainOffset += game.scrollSpeed;
+            
+            // Update stars - scroll slowly to the left
+            for (let star of stars) {
+                star.x -= game.scrollSpeed * 0.1; // Stars move at 10% terrain speed
+                
+                // Wrap around when star goes off left edge
+                if (star.x < 0) {
+                    star.x = canvas.width;
+                    star.y = Math.random() * canvas.height;
+                }
+            }
+            
+            // Shift terrain points
+            while (game.terrainOffset > terrain.segmentWidth) {
+                game.terrainOffset -= terrain.segmentWidth;
+                
+                // Remove first point and add new one at the end
+                terrain.points.shift();
+                
+                const lastPoint = terrain.points[terrain.points.length - 1];
+                let newY = lastPoint.y + (Math.random() - 0.5) * 40;
+                newY = Math.max(canvas.height - 200, Math.min(canvas.height - 50, newY));
+                
+                terrain.points.push({
+                    x: lastPoint.x + terrain.segmentWidth,
+                    y: newY
+                });
+            }
+            
+            // Shift all terrain points left
+            for (let point of terrain.points) {
+                point.x -= game.scrollSpeed;
+            }
+        }
+        
+        function damageShip(amount) {
+            ship.shields -= amount;
+            updateShields();
+            
+            if (ship.shields <= 0) {
+                destroyShip();
+            }
+        }
+        
+        function destroyShip() {
+            game.isGameOver = true;
+            game.respawnTimer = 0;
+            document.getElementById('gameOver').style.display = 'block';
+            playExplosion();
+        }
+        
+        function respawnShip() {
+            ship.shields = ship.maxShields;
+            ship.x = 200;
+            ship.y = 300;
+            ship.vx = 0;
+            ship.vy = 0;
+            game.isGameOver = false;
+            document.getElementById('gameOver').style.display = 'none';
+            updateShields();
+        }
+        
+        function completeDocking() {
+            game.isDocked = true;
+            game.dockingTimer = 0;
+            game.countdownActive = false;
+            playDockingSuccess();
+            document.getElementById('levelComplete').style.display = 'block';
+            document.getElementById('dockingHint').style.display = 'none';
+            document.getElementById('countdown').style.display = 'none';
+            
+            // Bonus points for completing level
+            game.score += 100 * game.level;
+            updateScore();
+        }
+        
+        function startCountdown() {
+            game.countdownActive = true;
+            game.countdownTime = 10;
+            game.countdownFrames = 0;
+            updateCountdownDisplay();
+            document.getElementById('countdown').style.display = 'block';
+        }
+        
+        function updateCountdownDisplay() {
+            const countdownEl = document.getElementById('countdown');
+            countdownEl.textContent = `DOCK IN: ${game.countdownTime}`;
+            
+            // Make it critical (red) when time is low
+            if (game.countdownTime <= 3) {
+                countdownEl.classList.add('critical');
+            } else {
+                countdownEl.classList.remove('critical');
+            }
+        }
+        
+        function timeoutDocking() {
+            // Player failed to dock in time
+            game.countdownActive = false;
+            document.getElementById('countdown').style.display = 'none';
+            document.getElementById('dockingHint').style.display = 'none';
+            
+            // Respawn ship and reset countdown
+            ship.x = 200;
+            ship.y = 300;
+            ship.vx = 0;
+            ship.vy = 0;
+            
+            // Station stays but countdown restarts
+            startCountdown();
+            document.getElementById('dockingHint').style.display = 'block';
+            
+            playExplosion();
+        }
+        
+        function nextLevel() {
+            game.level++;
+            game.levelDistance = 0;
+            game.isDocked = false;
+            game.countdownActive = false;
+            game.powerUpSpawned = false; // Reset power-up for next level
+            game.bombPowerUpSpawned = false; // Reset bomb power-up for next level
+            game.scrollSpeed = 3 + (game.level - 1) * 0.5; // Increase difficulty
+            
+            // Reset ship
+            ship.shields = ship.maxShields;
+            ship.x = 200;
+            ship.y = 300;
+            ship.vx = 0;
+            ship.vy = 0;
+            
+            // Clear obstacles and power-ups
+            obstacles.length = 0;
+            powerUps.length = 0;
+            bombPowerUps.length = 0;
+            bombs.length = 0;
+            cannons.length = 0;
+            enemyLasers.length = 0;
+            
+            // Reset station
+            station.active = false;
+            station.isVisible = false;
+            
+            // Update UI
+            document.getElementById('levelComplete').style.display = 'none';
+            document.getElementById('countdown').style.display = 'none';
+            document.getElementById('level').textContent = `LEVEL: ${game.level}`;
+            updateShields();
+            updateBombCount();
+        }
+        
+        function updateScore() {
+            document.getElementById('score').textContent = `SCORE: ${game.score}`;
+        }
+        
+        function updateShields() {
+            const percentage = (ship.shields / ship.maxShields) * 100;
+            document.getElementById('shieldFill').style.width = `${Math.max(0, percentage)}%`;
+        }
+        
+        function updateSoundIndicator() {
+            const indicator = document.getElementById('soundIndicator');
+            if (game.soundEnabled) {
+                indicator.textContent = '🔊';
+                indicator.classList.remove('muted');
+            } else {
+                indicator.textContent = '🔇';
+                indicator.classList.add('muted');
+            }
+        }
+        
+        function updatePauseDisplay() {
+            const pauseOverlay = document.getElementById('pauseOverlay');
+            if (game.isPaused) {
+                pauseOverlay.style.display = 'block';
+            } else {
+                pauseOverlay.style.display = 'none';
+            }
+        }
+        
+        function updateBombCount() {
+            const bombCountEl = document.getElementById('bombCount');
+            if (game.level >= 4) {
+                bombCountEl.style.display = 'block';
+                bombCountEl.textContent = `BOMBS: ${game.bombCount}`;
+            } else {
+                bombCountEl.style.display = 'none';
+            }
+        }
+        
+        // Draw function
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = '#000814';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw stars background with slow parallax scrolling
+            ctx.fillStyle = '#fff';
+            for (let star of stars) {
+                ctx.fillRect(star.x, star.y, star.size, star.size);
+            }
+            
+            // Draw terrain
+            ctx.fillStyle = '#1a4d2e';
+            ctx.strokeStyle = '#2d8659';
+            ctx.lineWidth = 2;
+            
+            ctx.beginPath();
+            ctx.moveTo(-10, canvas.height);
+            
+            for (let i = 0; i < terrain.points.length; i++) {
+                const point = terrain.points[i];
+                ctx.lineTo(point.x, point.y);
+            }
+            
+            ctx.lineTo(canvas.width + 10, canvas.height);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            
+            // Draw obstacles
+            for (let obs of obstacles) {
+                if (!obs.destroyed) {
+                    // Draw asteroid-like obstacle
+                    ctx.fillStyle = '#8b4513';
+                    ctx.strokeStyle = '#654321';
+                    ctx.lineWidth = 2;
+                    
+                    ctx.beginPath();
+                    const sides = 8;
+                    for (let i = 0; i < sides; i++) {
+                        const angle = (i / sides) * Math.PI * 2;
+                        const radius = obs.width / 2 + Math.sin(angle * 3) * 5;
+                        const x = obs.x + obs.width / 2 + Math.cos(angle) * radius;
+                        const y = obs.y + obs.height / 2 + Math.sin(angle) * radius;
+                        
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                }
+            }
+            
+            // Draw power-ups (blue diamonds)
+            for (let powerUp of powerUps) {
+                if (!powerUp.destroyed) {
+                    ctx.save();
+                    ctx.translate(powerUp.x, powerUp.y);
+                    ctx.rotate(powerUp.rotation);
+                    
+                    // Draw diamond shape
+                    ctx.fillStyle = '#00bfff';
+                    ctx.strokeStyle = '#0080ff';
+                    ctx.lineWidth = 2;
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#00bfff';
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(0, -powerUp.size); // Top
+                    ctx.lineTo(powerUp.size, 0); // Right
+                    ctx.lineTo(0, powerUp.size); // Bottom
+                    ctx.lineTo(-powerUp.size, 0); // Left
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    ctx.shadowBlur = 0;
+                    ctx.restore();
+                }
+            }
+            
+            // Draw bomb power-ups (red dots)
+            for (let bombPU of bombPowerUps) {
+                if (!bombPU.destroyed) {
+                    ctx.fillStyle = '#ff0000';
+                    ctx.strokeStyle = '#cc0000';
+                    ctx.lineWidth = 2;
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = '#ff0000';
+                    
+                    ctx.beginPath();
+                    ctx.arc(bombPU.x, bombPU.y, bombPU.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    ctx.shadowBlur = 0;
+                }
+            }
+            
+            // Draw bombs (dark blue heat-seeking)
+            for (let bomb of bombs) {
+                ctx.fillStyle = '#000080';
+                ctx.strokeStyle = '#0000cc';
+                ctx.lineWidth = 2;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#0000ff';
+                
+                // Draw bomb as rounded rectangle
+                ctx.beginPath();
+                ctx.arc(bomb.x, bomb.y, bomb.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                // Draw trail
+                ctx.strokeStyle = '#4444ff';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(bomb.x, bomb.y);
+                ctx.lineTo(bomb.x - bomb.vx * 2, bomb.y - bomb.vy * 2);
+                ctx.stroke();
+                
+                ctx.shadowBlur = 0;
+            }
+            
+            // Draw laser cannons
+            for (let cannon of cannons) {
+                if (!cannon.destroyed) {
+                    ctx.save();
+                    
+                    // Draw base
+                    ctx.fillStyle = '#444';
+                    ctx.strokeStyle = '#666';
+                    ctx.lineWidth = 2;
+                    ctx.fillRect(cannon.x - cannon.width / 2, cannon.y - cannon.height, cannon.width, cannon.height);
+                    ctx.strokeRect(cannon.x - cannon.width / 2, cannon.y - cannon.height, cannon.width, cannon.height);
+                    
+                    // Draw barrel (rotates to track player)
+                    ctx.translate(cannon.x, cannon.y - cannon.height / 2);
+                    ctx.rotate(cannon.barrelAngle);
+                    
+                    ctx.fillStyle = '#555';
+                    ctx.strokeStyle = '#777';
+                    ctx.fillRect(0, -3, 25, 6);
+                    ctx.strokeRect(0, -3, 25, 6);
+                    
+                    // Barrel tip glow
+                    ctx.fillStyle = '#f00';
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = '#f00';
+                    ctx.beginPath();
+                    ctx.arc(25, 0, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    
+                    ctx.restore();
+                }
+            }
+            
+            // Draw enemy lasers
+            ctx.fillStyle = '#f00';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#f00';
+            
+            for (let eLaser of enemyLasers) {
+                ctx.save();
+                ctx.translate(eLaser.x, eLaser.y);
+                ctx.rotate(eLaser.angle);
+                ctx.fillRect(0, -eLaser.height / 2, eLaser.width, eLaser.height);
+                ctx.restore();
+            }
+            
+            ctx.shadowBlur = 0;
+            
+            // Draw space station
+            if (station.active) {
+                // Main station body
+                ctx.fillStyle = '#555';
+                ctx.strokeStyle = '#888';
+                ctx.lineWidth = 3;
+                
+                // Central core
+                ctx.fillRect(station.x + 40, station.y + 40, 70, 120);
+                ctx.strokeRect(station.x + 40, station.y + 40, 70, 120);
+                
+                // Top module
+                ctx.fillRect(station.x + 50, station.y, 50, 50);
+                ctx.strokeRect(station.x + 50, station.y, 50, 50);
+                
+                // Bottom module
+                ctx.fillRect(station.x + 50, station.y + 150, 50, 50);
+                ctx.strokeRect(station.x + 50, station.y + 150, 50, 50);
+                
+                // Docking bay (left side opening)
+                ctx.fillStyle = '#1a1a1a';
+                ctx.fillRect(station.dockingBay.x, station.dockingBay.y, station.dockingBay.width, station.dockingBay.height);
+                
+                // Docking bay indicator lights
+                const isDockable = checkDocking();
+                ctx.fillStyle = isDockable ? '#0f0' : '#f00';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = isDockable ? '#0f0' : '#f00';
+                
+                // Top light
+                ctx.beginPath();
+                ctx.arc(station.dockingBay.x + 10, station.dockingBay.y + 5, 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Bottom light
+                ctx.beginPath();
+                ctx.arc(station.dockingBay.x + 10, station.dockingBay.y + station.dockingBay.height - 5, 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.shadowBlur = 0;
+                
+                // Docking bay outline
+                ctx.strokeStyle = isDockable ? '#0f0' : '#ff0';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(station.dockingBay.x, station.dockingBay.y, station.dockingBay.width, station.dockingBay.height);
+                
+                // Windows on station
+                ctx.fillStyle = '#ffff00';
+                for (let i = 0; i < 8; i++) {
+                    const wx = station.x + 60 + (i % 2) * 20;
+                    const wy = station.y + 60 + Math.floor(i / 2) * 25;
+                    ctx.fillRect(wx, wy, 8, 8);
+                }
+                
+                // Antenna
+                ctx.strokeStyle = '#888';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(station.x + 75, station.y);
+                ctx.lineTo(station.x + 75, station.y - 30);
+                ctx.stroke();
+                
+                // Antenna light
+                ctx.fillStyle = '#f00';
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#f00';
+                ctx.beginPath();
+                ctx.arc(station.x + 75, station.y - 30, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+            
+            // Draw lasers
+            ctx.shadowBlur = 10;
+            
+            for (let laser of lasers) {
+                // Make lasers cyan when dual-shot is active
+                ctx.fillStyle = game.dualShotActive ? '#0ff' : '#0f0';
+                ctx.shadowColor = game.dualShotActive ? '#0ff' : '#0f0';
+                ctx.fillRect(laser.x, laser.y, laser.width, laser.height);
+            }
+            
+            ctx.shadowBlur = 0;
+            
+            // Draw ship
+            if (!game.isGameOver) {
+                // Ship body
+                ctx.fillStyle = '#00aaff';
+                ctx.strokeStyle = '#0088cc';
+                ctx.lineWidth = 2;
+                
+                ctx.beginPath();
+                ctx.moveTo(ship.x + ship.width, ship.y + ship.height / 2); // Nose
+                ctx.lineTo(ship.x, ship.y); // Top back
+                ctx.lineTo(ship.x, ship.y + ship.height); // Bottom back
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                // Cockpit
+                ctx.fillStyle = '#00ffff';
+                ctx.beginPath();
+                ctx.arc(ship.x + ship.width * 0.6, ship.y + ship.height / 2, 4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Boost flame
+                if (ship.acceleration > 0) {
+                    const flameLength = 20 + ship.acceleration * 10;
+                    
+                    ctx.fillStyle = '#ff6600';
+                    ctx.beginPath();
+                    ctx.moveTo(ship.x, ship.y + ship.height * 0.3);
+                    ctx.lineTo(ship.x - flameLength, ship.y + ship.height / 2);
+                    ctx.lineTo(ship.x, ship.y + ship.height * 0.7);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = '#ffff00';
+                    ctx.beginPath();
+                    ctx.moveTo(ship.x, ship.y + ship.height * 0.4);
+                    ctx.lineTo(ship.x - flameLength * 0.6, ship.y + ship.height / 2);
+                    ctx.lineTo(ship.x, ship.y + ship.height * 0.6);
+                    ctx.fill();
+                }
+            } else {
+                // Draw explosion
+                const explosionSize = (game.respawnTimer % 30) * 2;
+                ctx.fillStyle = `rgba(255, ${100 - game.respawnTimer * 2}, 0, ${1 - game.respawnTimer / 120})`;
+                
+                for (let i = 0; i < 10; i++) {
+                    const angle = (i / 10) * Math.PI * 2;
+                    const radius = explosionSize + Math.random() * 20;
+                    const x = ship.x + ship.width / 2 + Math.cos(angle) * radius;
+                    const y = ship.y + ship.height / 2 + Math.sin(angle) * radius;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+        
+        // Game loop
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Start game
+        updateScore();
+        updateShields();
+        updateSoundIndicator();
+        gameLoop();
+    </script>
+</body>
+</html>
